@@ -1,9 +1,16 @@
 from datetime import datetime
 from pathlib import Path
+import math
 import textwrap
 
 from PIL import Image, ImageDraw, ImageFont
-from moviepy import ImageClip, concatenate_videoclips
+
+from moviepy import (
+    AudioFileClip,
+    ImageClip,
+    concatenate_audioclips,
+    concatenate_videoclips
+)
 
 
 class VideoGenerator:
@@ -19,16 +26,10 @@ class VideoGenerator:
         perguntas,
         tempo_resposta=5,
         limite_perguntas=None,
+        caminho_musica=None,
+        volume_musica=0.15,
         callback_progresso=None
     ):
-        """
-        Gera um vídeo completo ou limitado.
-
-        limite_perguntas:
-            None = usa todas as perguntas.
-            Número inteiro = limita a quantidade.
-        """
-
         pasta_projeto = Path(pasta_projeto)
 
         pasta_frames = (
@@ -68,7 +69,13 @@ class VideoGenerator:
             perguntas_selecionadas
         )
 
-        clips = []
+        clips_video = []
+
+        video_final = None
+        video_com_audio = None
+        audio_original = None
+        audio_repetido = None
+        audio_final = None
 
         try:
             for numero, pergunta in enumerate(
@@ -85,7 +92,7 @@ class VideoGenerator:
                     )
                 )
 
-                clips_pergunta = (
+                clips_da_pergunta = (
                     self._criar_clips_da_pergunta(
                         pasta_frames=pasta_frames,
                         numero=numero,
@@ -94,8 +101,8 @@ class VideoGenerator:
                     )
                 )
 
-                clips.extend(
-                    clips_pergunta
+                clips_video.extend(
+                    clips_da_pergunta
                 )
 
             self._informar_progresso(
@@ -106,9 +113,54 @@ class VideoGenerator:
             )
 
             video_final = concatenate_videoclips(
-                clips,
+                clips_video,
                 method="compose"
             )
+
+            video_para_exportar = video_final
+
+            if caminho_musica:
+                self._informar_progresso(
+                    callback_progresso,
+                    total_perguntas,
+                    total_perguntas,
+                    "Adicionando música de fundo..."
+                )
+
+                caminho_musica = Path(
+                    caminho_musica
+                )
+
+                if not caminho_musica.exists():
+                    raise FileNotFoundError(
+                        "O arquivo de música não foi encontrado."
+                    )
+
+                audio_original = AudioFileClip(
+                    str(caminho_musica)
+                )
+
+                audio_repetido = (
+                    self._preparar_musica(
+                        audio_original=audio_original,
+                        duracao_video=video_final.duration
+                    )
+                )
+
+                audio_final = (
+                    audio_repetido
+                    .with_volume_scaled(volume_musica)
+                )
+
+                video_com_audio = (
+                    video_final.with_audio(
+                        audio_final
+                    )
+                )
+
+                video_para_exportar = (
+                    video_com_audio
+                )
 
             data_hora = datetime.now().strftime(
                 "%Y%m%d_%H%M%S"
@@ -119,26 +171,23 @@ class VideoGenerator:
                 / f"moleza_quiz_{data_hora}.mp4"
             )
 
-            try:
-                self._informar_progresso(
-                    callback_progresso,
-                    total_perguntas,
-                    total_perguntas,
-                    "Renderizando o arquivo MP4..."
-                )
+            self._informar_progresso(
+                callback_progresso,
+                total_perguntas,
+                total_perguntas,
+                "Renderizando o arquivo MP4..."
+            )
 
-                video_final.write_videofile(
-                    str(caminho_saida),
-                    fps=self.fps,
-                    codec="libx264",
-                    audio=False,
-                    preset="medium",
-                    threads=4,
-                    logger=None
-                )
-
-            finally:
-                video_final.close()
+            video_para_exportar.write_videofile(
+                str(caminho_saida),
+                fps=self.fps,
+                codec="libx264",
+                audio_codec="aac",
+                audio=bool(caminho_musica),
+                preset="medium",
+                threads=4,
+                logger=None
+            )
 
             self._informar_progresso(
                 callback_progresso,
@@ -150,8 +199,61 @@ class VideoGenerator:
             return caminho_saida
 
         finally:
-            for clip in clips:
+            if video_com_audio is not None:
+                video_com_audio.close()
+
+            if audio_final is not None:
+                audio_final.close()
+
+            if audio_repetido is not None:
+                audio_repetido.close()
+
+            if audio_original is not None:
+                audio_original.close()
+
+            if video_final is not None:
+                video_final.close()
+
+            for clip in clips_video:
                 clip.close()
+
+    def _preparar_musica(
+        self,
+        audio_original,
+        duracao_video
+    ):
+        if not audio_original.duration:
+            raise ValueError(
+                "Não foi possível identificar "
+                "a duração da música."
+            )
+
+        if audio_original.duration >= duracao_video:
+            return audio_original.subclipped(
+                0,
+                duracao_video
+            )
+
+        quantidade_repeticoes = math.ceil(
+            duracao_video
+            / audio_original.duration
+        )
+
+        repeticoes = [
+            audio_original
+            for _ in range(
+                quantidade_repeticoes
+            )
+        ]
+
+        audio_repetido = concatenate_audioclips(
+            repeticoes
+        )
+
+        return audio_repetido.subclipped(
+            0,
+            duracao_video
+        )
 
     def _criar_clips_da_pergunta(
         self,
@@ -162,7 +264,6 @@ class VideoGenerator:
     ):
         clips = []
 
-        # Tela de apresentação da pergunta
         caminho_pergunta = (
             pasta_frames
             / f"pergunta_{numero:03d}.png"
@@ -180,7 +281,6 @@ class VideoGenerator:
             ).with_duration(1)
         )
 
-        # Contagem regressiva
         for contador in range(
             tempo_resposta,
             0,
@@ -207,7 +307,6 @@ class VideoGenerator:
                 ).with_duration(1)
             )
 
-        # Revelação da resposta
         caminho_resposta = (
             pasta_frames
             / f"pergunta_{numero:03d}_resposta.png"
@@ -305,15 +404,22 @@ class VideoGenerator:
         )
 
         largura_texto = (
-            caixa_texto[2] - caixa_texto[0]
+            caixa_texto[2]
+            - caixa_texto[0]
         )
 
         altura_texto = (
-            caixa_texto[3] - caixa_texto[1]
+            caixa_texto[3]
+            - caixa_texto[1]
         )
 
-        x = 1135 - (largura_texto / 2)
-        y = 600 - (altura_texto / 2) - 8
+        x = 1135 - (
+            largura_texto / 2
+        )
+
+        y = 600 - (
+            altura_texto / 2
+        ) - 8
 
         desenho.text(
             (x, y),
@@ -349,8 +455,8 @@ class VideoGenerator:
             "Pergunta sem texto"
         )
 
-        fonte_pergunta = self._carregar_fonte(
-            40
+        fonte_pergunta = (
+            self._carregar_fonte(40)
         )
 
         y = 175
@@ -458,12 +564,12 @@ class VideoGenerator:
             []
         )
 
-        fonte_pergunta = self._carregar_fonte(
-            38
+        fonte_pergunta = (
+            self._carregar_fonte(38)
         )
 
-        fonte_alternativa = self._carregar_fonte(
-            28
+        fonte_alternativa = (
+            self._carregar_fonte(28)
         )
 
         y = 170
@@ -520,10 +626,14 @@ class VideoGenerator:
         if isinstance(resposta, int):
             indice = resposta
 
-            if 1 <= indice <= len(alternativas):
+            if 1 <= indice <= len(
+                alternativas
+            ):
                 indice -= 1
 
-            if 0 <= indice < len(alternativas):
+            if 0 <= indice < len(
+                alternativas
+            ):
                 letra = chr(65 + indice)
 
                 return (
@@ -541,7 +651,9 @@ class VideoGenerator:
             if letra in "ABCD":
                 indice = ord(letra) - 65
 
-                if indice < len(alternativas):
+                if indice < len(
+                    alternativas
+                ):
                     return (
                         f"{letra}) "
                         f"{alternativas[indice]}"
