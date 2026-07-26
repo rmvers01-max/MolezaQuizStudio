@@ -4,67 +4,76 @@ import json
 
 class Config:
 
-	def __init__(self):
+    def __init__(self):
+        self.arquivo = Path("data") / "config.json"
 
-		self.arquivo = Path("data") / "config.json"
+        self.dados_padrao = {
+            "tempo_pergunta": 5,
+            "quantidade_perguntas": 10,
+            "resolucao": "1920x1080",
+            "fps": 30,
+            "voz": "Feminina alegre"
+        }
 
-		self.dados_padrao = {
+        self.dados = {}
 
-			"modelo_ia": "gpt-5.5",
+        self.carregar()
 
-			"tempo_pergunta": 5,
+    def carregar(self):
+        self.arquivo.parent.mkdir(
+            parents=True,
+            exist_ok=True
+        )
 
-			"quantidade": 30,
+        if not self.arquivo.exists():
+            self.dados = self.dados_padrao.copy()
+            self.salvar()
+            return
 
-			"resolucao": "1080x1920",
+        try:
+            with open(
+                self.arquivo,
+                "r",
+                encoding="utf-8"
+            ) as arquivo_json:
+                dados_salvos = json.load(arquivo_json)
 
-			"fps": 30,
+        except (json.JSONDecodeError, OSError):
+            dados_salvos = {}
 
-			"voz": "pt-BR",
+        # Mantém valores padrão caso alguma configuração esteja faltando
+        self.dados = self.dados_padrao.copy()
+        self.dados.update(dados_salvos)
 
-			"api_key": ""
+        self.salvar()
 
-		}
+    def salvar(self):
+        with open(
+            self.arquivo,
+            "w",
+            encoding="utf-8"
+        ) as arquivo_json:
+            json.dump(
+                self.dados,
+                arquivo_json,
+                ensure_ascii=False,
+                indent=4
+            )
 
-		self.carregar()
+    def get(self, chave, valor_padrao=None):
+        return self.dados.get(
+            chave,
+            valor_padrao
+        )
 
-	def carregar(self):
+    def set(self, chave, valor):
+        self.dados[chave] = valor
+        self.salvar()
 
-		self.arquivo.parent.mkdir(exist_ok=True)
+    def atualizar(self, novos_dados):
+        self.dados.update(novos_dados)
+        self.salvar()
 
-		if not self.arquivo.exists():
-
-			self.salvar()
-
-		with open(self.arquivo, "r", encoding="utf-8") as f:
-
-			self.dados = json.load(f)
-
-	def salvar(self):
-
-		with open(self.arquivo, "w", encoding="utf-8") as f:
-
-			json.dump(
-				self.dados_padrao,
-				f,
-				indent=4,
-				ensure_ascii=False
-			)
-
-	def get(self, chave):
-
-		return self.dados[chave]
-
-	def set(self, chave, valor):
-
-		self.dados[chave] = valor
-
-		with open(self.arquivo, "w", encoding="utf-8") as f:
-
-			json.dump(
-				self.dados,
-				f,
-				indent=4,
-				ensure_ascii=False
-			)
-
+    def restaurar_padrao(self):
+        self.dados = self.dados_padrao.copy()
+        self.salvar()
