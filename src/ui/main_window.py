@@ -1,6 +1,7 @@
 import customtkinter as ctk
 
 from ui.export_page import ExportPage
+from ui.narration_page import NarrationPage
 from ui.projects_page import ProjectsPage
 from ui.quiz_page import QuizPage
 from ui.settings_page import SettingsPage
@@ -92,6 +93,22 @@ class MainWindow(ctk.CTk):
             pady=6
         )
 
+        self.botao_narracao = (
+            ctk.CTkButton(
+                self.menu,
+                text="Narração",
+                width=180,
+                height=40,
+                command=(
+                    self.abrir_narracao
+                )
+            )
+        )
+
+        self.botao_narracao.pack(
+            pady=6
+        )
+
         self.botao_videos = (
             ctk.CTkButton(
                 self.menu,
@@ -180,6 +197,18 @@ class MainWindow(ctk.CTk):
         self.limpar_conteudo()
 
         pagina = ProjectsPage(
+            self.conteudo
+        )
+
+        pagina.pack(
+            fill="both",
+            expand=True
+        )
+
+    def abrir_narracao(self):
+        self.limpar_conteudo()
+
+        pagina = NarrationPage(
             self.conteudo
         )
 
