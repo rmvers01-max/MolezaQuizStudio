@@ -1,7 +1,14 @@
 from pathlib import Path
-from typing import Optional
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import (
+    Image,
+    ImageDraw,
+    ImageFilter,
+    ImageFont,
+    UnidentifiedImageError
+)
+
+from core.branding_manager import BrandingManager
 
 
 class ThumbnailGenerator:
@@ -9,7 +16,13 @@ class ThumbnailGenerator:
     ALTURA = 720
 
     def __init__(self):
-        self.fontes_windows = Path("C:/Windows/Fonts")
+        self.fontes_windows = Path(
+            "C:/Windows/Fonts"
+        )
+
+        self.branding_manager = (
+            BrandingManager()
+        )
 
     def gerar(
         self,
@@ -19,13 +32,19 @@ class ThumbnailGenerator:
         texto_chamada: str = "VOCÊ CONSEGUE ACERTAR?",
         nome_arquivo: str = "thumbnail.png"
     ) -> Path:
-        pasta_projeto = Path(pasta_projeto)
+        pasta_projeto = Path(
+            pasta_projeto
+        )
+
         pasta_projeto.mkdir(
             parents=True,
             exist_ok=True
         )
 
-        caminho_saida = pasta_projeto / nome_arquivo
+        caminho_saida = (
+            pasta_projeto
+            / nome_arquivo
+        )
 
         imagem = Image.new(
             "RGB",
@@ -36,26 +55,47 @@ class ThumbnailGenerator:
             "#132238"
         )
 
-        desenho = ImageDraw.Draw(imagem)
+        self._desenhar_degrade(
+            imagem
+        )
 
-        self._desenhar_degrade(imagem)
-        self._desenhar_elementos_fundo(desenho)
-        self._desenhar_sombra_principal(desenho)
-        self._desenhar_selo_canal(desenho)
-        self._desenhar_chamada(
-            desenho,
-            texto_chamada
+        desenho = ImageDraw.Draw(
+            imagem
         )
-        self._desenhar_tema(
-            desenho,
-            tema
-        )
-        self._desenhar_quantidade(
-            desenho,
-            quantidade_perguntas
-        )
-        self._desenhar_mascote_simbolico(
+
+        self._desenhar_elementos_fundo(
             desenho
+        )
+
+        self._desenhar_sombra_principal(
+            desenho
+        )
+
+        self._desenhar_identidade_canal(
+            imagem=imagem,
+            desenho=desenho
+        )
+
+        self._desenhar_chamada(
+            desenho=desenho,
+            texto=texto_chamada
+        )
+
+        self._desenhar_tema(
+            desenho=desenho,
+            tema=tema
+        )
+
+        self._desenhar_quantidade(
+            desenho=desenho,
+            quantidade_perguntas=(
+                quantidade_perguntas
+            )
+        )
+
+        self._desenhar_mascote(
+            imagem=imagem,
+            desenho=desenho
         )
 
         imagem.save(
@@ -82,12 +122,19 @@ class ThumbnailGenerator:
             51
         )
 
-        pixels = imagem.load()
+        desenho = ImageDraw.Draw(
+            imagem
+        )
 
-        for y in range(self.ALTURA):
-            proporcao = y / max(
-                self.ALTURA - 1,
-                1
+        for y in range(
+            self.ALTURA
+        ):
+            proporcao = (
+                y
+                / max(
+                    self.ALTURA - 1,
+                    1
+                )
             )
 
             vermelho = int(
@@ -117,12 +164,19 @@ class ThumbnailGenerator:
                 * proporcao
             )
 
-            for x in range(self.LARGURA):
-                pixels[x, y] = (
+            desenho.line(
+                (
+                    0,
+                    y,
+                    self.LARGURA,
+                    y
+                ),
+                fill=(
                     vermelho,
                     verde,
                     azul
                 )
+            )
 
     def _desenhar_elementos_fundo(
         self,
@@ -213,6 +267,40 @@ class ThumbnailGenerator:
             outline="#33A4A6",
             width=4
         )
+
+    def _desenhar_identidade_canal(
+        self,
+        imagem: Image.Image,
+        desenho: ImageDraw.ImageDraw
+    ):
+        caminho_logo = (
+            self.branding_manager
+            .obter_logo()
+        )
+
+        logo_adicionado = False
+
+        if caminho_logo:
+            logo_adicionado = (
+                self._adicionar_imagem_transparente(
+                    imagem_base=imagem,
+                    caminho_imagem=caminho_logo,
+                    caixa=(
+                        105,
+                        95,
+                        430,
+                        185
+                    ),
+                    alinhamento_horizontal="esquerda",
+                    alinhamento_vertical="centro",
+                    margem=8
+                )
+            )
+
+        if not logo_adicionado:
+            self._desenhar_selo_canal(
+                desenho
+            )
 
     def _desenhar_selo_canal(
         self,
@@ -307,13 +395,15 @@ class ThumbnailGenerator:
             or "QUIZ"
         )
 
-        linhas, fonte = self._quebrar_texto_com_fonte(
-            desenho=desenho,
-            texto=tema,
-            largura_maxima=810,
-            maximo_linhas=3,
-            tamanho_inicial=92,
-            tamanho_minimo=42
+        linhas, fonte = (
+            self._quebrar_texto_com_fonte(
+                desenho=desenho,
+                texto=tema,
+                largura_maxima=810,
+                maximo_linhas=3,
+                tamanho_inicial=92,
+                tamanho_minimo=42
+            )
         )
 
         y = 305
@@ -346,7 +436,10 @@ class ThumbnailGenerator:
                 stroke_fill="#071A29"
             )
 
-            y += altura_linha + 14
+            y += (
+                altura_linha
+                + 14
+            )
 
     def _desenhar_quantidade(
         self,
@@ -357,17 +450,19 @@ class ThumbnailGenerator:
             quantidade = int(
                 quantidade_perguntas
             )
+
         except (
             TypeError,
             ValueError
         ):
             quantidade = 0
 
-        texto = (
-            f"{quantidade} PERGUNTAS"
-            if quantidade > 0
-            else "DESAFIO COMPLETO"
-        )
+        if quantidade > 0:
+            texto = (
+                f"{quantidade} PERGUNTAS"
+            )
+        else:
+            texto = "DESAFIO COMPLETO"
 
         fonte = self._carregar_fonte(
             tamanho=43,
@@ -383,7 +478,10 @@ class ThumbnailGenerator:
             font=fonte
         )
 
-        largura = caixa[2] - caixa[0]
+        largura = (
+            caixa[2]
+            - caixa[0]
+        )
 
         desenho.rounded_rectangle(
             (
@@ -406,13 +504,239 @@ class ThumbnailGenerator:
             fill="#FFFFFF"
         )
 
+    def _desenhar_mascote(
+        self,
+        imagem: Image.Image,
+        desenho: ImageDraw.ImageDraw
+    ):
+        caminho_mascote = (
+            self.branding_manager
+            .obter_mascote()
+        )
+
+        mascote_adicionado = False
+
+        if caminho_mascote:
+            mascote_adicionado = (
+                self._adicionar_mascote_com_sombra(
+                    imagem_base=imagem,
+                    caminho_mascote=caminho_mascote
+                )
+            )
+
+        if not mascote_adicionado:
+            self._desenhar_mascote_simbolico(
+                desenho
+            )
+
+    def _adicionar_mascote_com_sombra(
+        self,
+        imagem_base: Image.Image,
+        caminho_mascote: Path
+    ) -> bool:
+        try:
+            with Image.open(
+                caminho_mascote
+            ) as imagem_original:
+                mascote = (
+                    imagem_original
+                    .convert("RGBA")
+                    .copy()
+                )
+
+        except (
+            OSError,
+            ValueError,
+            UnidentifiedImageError
+        ):
+            return False
+
+        mascote = self._recortar_transparencia(
+            mascote
+        )
+
+        if (
+            mascote.width < 1
+            or mascote.height < 1
+        ):
+            return False
+
+        mascote.thumbnail(
+            (
+                310,
+                430
+            ),
+            Image.Resampling.LANCZOS
+        )
+
+        if (
+            mascote.width < 1
+            or mascote.height < 1
+        ):
+            return False
+
+        margem_sombra = 35
+
+        largura_camada = (
+            mascote.width
+            + margem_sombra * 2
+        )
+
+        altura_camada = (
+            mascote.height
+            + margem_sombra * 2
+        )
+
+        camada_mascote = Image.new(
+            "RGBA",
+            (
+                largura_camada,
+                altura_camada
+            ),
+            (
+                0,
+                0,
+                0,
+                0
+            )
+        )
+
+        mascara_original = mascote.getchannel(
+            "A"
+        )
+
+        mascara_sombra = Image.new(
+            "L",
+            (
+                largura_camada,
+                altura_camada
+            ),
+            0
+        )
+
+        mascara_sombra.paste(
+            mascara_original,
+            (
+                margem_sombra + 10,
+                margem_sombra + 14
+            )
+        )
+
+        mascara_sombra = (
+            mascara_sombra
+            .filter(
+                ImageFilter.GaussianBlur(
+                    radius=14
+                )
+            )
+        )
+
+        mascara_sombra = mascara_sombra.point(
+            lambda valor: int(
+                valor * 0.58
+            )
+        )
+
+        sombra = Image.new(
+            "RGBA",
+            (
+                largura_camada,
+                altura_camada
+            ),
+            (
+                0,
+                0,
+                0,
+                0
+            )
+        )
+
+        sombra.putalpha(
+            mascara_sombra
+        )
+
+        camada_mascote.alpha_composite(
+            sombra,
+            (
+                0,
+                0
+            )
+        )
+
+        camada_mascote.alpha_composite(
+            mascote,
+            (
+                margem_sombra,
+                margem_sombra
+            )
+        )
+
+        posicao_x = (
+            self.LARGURA
+            - largura_camada
+            - 5
+        )
+
+        posicao_y = (
+            self.ALTURA
+            - altura_camada
+            + 8
+        )
+
+        posicao_x = max(
+            posicao_x,
+            0
+        )
+
+        posicao_y = max(
+            posicao_y,
+            0
+        )
+
+        base_rgba = imagem_base.convert(
+            "RGBA"
+        )
+
+        base_rgba.alpha_composite(
+            camada_mascote,
+            (
+                int(posicao_x),
+                int(posicao_y)
+            )
+        )
+
+        imagem_base.paste(
+            base_rgba.convert("RGB")
+        )
+
+        return True
+
+    def _recortar_transparencia(
+        self,
+        imagem: Image.Image
+    ) -> Image.Image:
+        if imagem.mode != "RGBA":
+            imagem = imagem.convert(
+                "RGBA"
+            )
+
+        canal_alpha = imagem.getchannel(
+            "A"
+        )
+
+        caixa = canal_alpha.getbbox()
+
+        if caixa is None:
+            return imagem
+
+        return imagem.crop(
+            caixa
+        )
+
     def _desenhar_mascote_simbolico(
         self,
         desenho: ImageDraw.ImageDraw
     ):
-        centro_x = 1110
-        centro_y = 405
-
         desenho.ellipse(
             (
                 1015,
@@ -488,32 +812,140 @@ class ThumbnailGenerator:
             width=5
         )
 
-        fonte = self._carregar_fonte(
-            tamanho=28,
-            negrito=True
+    def _adicionar_imagem_transparente(
+        self,
+        imagem_base: Image.Image,
+        caminho_imagem: Path,
+        caixa: tuple,
+        alinhamento_horizontal: str = "centro",
+        alinhamento_vertical: str = "centro",
+        margem: int = 0
+    ) -> bool:
+        caminho_imagem = Path(
+            caminho_imagem
         )
 
-        texto = "🦥"
+        if not caminho_imagem.exists():
+            return False
 
         try:
-            desenho.text(
-                (
-                    centro_x,
-                    550
-                ),
-                texto,
-                font=fonte,
-                anchor="mm",
-                fill="#FFFFFF"
+            with Image.open(
+                caminho_imagem
+            ) as imagem_original:
+                elemento = (
+                    imagem_original
+                    .convert("RGBA")
+                    .copy()
+                )
+
+        except (
+            OSError,
+            ValueError,
+            UnidentifiedImageError
+        ):
+            return False
+
+        elemento = self._recortar_transparencia(
+            elemento
+        )
+
+        x1, y1, x2, y2 = caixa
+
+        largura_disponivel = max(
+            x2 - x1 - margem * 2,
+            1
+        )
+
+        altura_disponivel = max(
+            y2 - y1 - margem * 2,
+            1
+        )
+
+        elemento.thumbnail(
+            (
+                largura_disponivel,
+                altura_disponivel
+            ),
+            Image.Resampling.LANCZOS
+        )
+
+        if (
+            elemento.width < 1
+            or elemento.height < 1
+        ):
+            return False
+
+        if alinhamento_horizontal == "esquerda":
+            posicao_x = (
+                x1
+                + margem
             )
-        except UnicodeEncodeError:
-            pass
+
+        elif alinhamento_horizontal == "direita":
+            posicao_x = (
+                x2
+                - elemento.width
+                - margem
+            )
+
+        else:
+            posicao_x = (
+                x1
+                + (
+                    x2
+                    - x1
+                    - elemento.width
+                )
+                // 2
+            )
+
+        if alinhamento_vertical == "topo":
+            posicao_y = (
+                y1
+                + margem
+            )
+
+        elif alinhamento_vertical == "base":
+            posicao_y = (
+                y2
+                - elemento.height
+                - margem
+            )
+
+        else:
+            posicao_y = (
+                y1
+                + (
+                    y2
+                    - y1
+                    - elemento.height
+                )
+                // 2
+            )
+
+        base_rgba = imagem_base.convert(
+            "RGBA"
+        )
+
+        base_rgba.alpha_composite(
+            elemento,
+            (
+                int(posicao_x),
+                int(posicao_y)
+            )
+        )
+
+        imagem_base.paste(
+            base_rgba.convert("RGB")
+        )
+
+        return True
 
     def _carregar_fonte(
         self,
         tamanho: int,
         negrito: bool = False
-    ) -> ImageFont.FreeTypeFont:
+    ):
         nomes_fontes = []
 
         if negrito:
@@ -524,6 +956,7 @@ class ThumbnailGenerator:
                     "segoeuib.ttf"
                 ]
             )
+
         else:
             nomes_fontes.extend(
                 [
@@ -547,6 +980,7 @@ class ThumbnailGenerator:
                     str(caminho),
                     tamanho
                 )
+
             except OSError:
                 continue
 
@@ -580,7 +1014,10 @@ class ThumbnailGenerator:
                 font=fonte
             )
 
-            largura = caixa[2] - caixa[0]
+            largura = (
+                caixa[2]
+                - caixa[0]
+            )
 
             if largura <= largura_maxima:
                 return fonte
@@ -632,9 +1069,13 @@ class ThumbnailGenerator:
         )
 
         if len(linhas) > maximo_linhas:
-            linhas = linhas[:maximo_linhas]
+            linhas = linhas[
+                :maximo_linhas
+            ]
 
-            ultima_linha = linhas[-1]
+            ultima_linha = (
+                linhas[-1]
+            )
 
             while ultima_linha:
                 texto_teste = (
@@ -651,13 +1092,18 @@ class ThumbnailGenerator:
                     font=fonte
                 )
 
-                largura = caixa[2] - caixa[0]
+                largura = (
+                    caixa[2]
+                    - caixa[0]
+                )
 
                 if largura <= largura_maxima:
                     linhas[-1] = texto_teste
                     break
 
-                ultima_linha = ultima_linha[:-1]
+                ultima_linha = (
+                    ultima_linha[:-1]
+                )
 
         return linhas, fonte
 
@@ -671,7 +1117,9 @@ class ThumbnailGenerator:
         palavras = texto.split()
 
         if not palavras:
-            return ["QUIZ"]
+            return [
+                "QUIZ"
+            ]
 
         linhas = []
         linha_atual = palavras[0]
@@ -690,10 +1138,14 @@ class ThumbnailGenerator:
                 font=fonte
             )
 
-            largura = caixa[2] - caixa[0]
+            largura = (
+                caixa[2]
+                - caixa[0]
+            )
 
             if largura <= largura_maxima:
                 linha_atual = teste
+
             else:
                 linhas.append(
                     linha_atual
