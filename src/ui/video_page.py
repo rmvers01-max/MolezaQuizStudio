@@ -20,8 +20,15 @@ class VideoPage(ctk.CTkFrame):
         self.carregar_projetos()
 
     def criar_interface(self):
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(
+            0,
+            weight=1
+        )
+
+        self.grid_rowconfigure(
+            1,
+            weight=1
+        )
 
         # =====================================
         # CABEÇALHO
@@ -49,8 +56,8 @@ class VideoPage(ctk.CTkFrame):
         ctk.CTkLabel(
             cabecalho,
             text=(
-                "Gere um vídeo de teste usando as três "
-                "primeiras perguntas de um projeto."
+                "Gere um vídeo com pergunta, "
+                "contagem regressiva e resposta."
             ),
             text_color="gray70"
         ).pack(
@@ -82,7 +89,9 @@ class VideoPage(ctk.CTkFrame):
 
         self.seletor_projeto = ctk.CTkOptionMenu(
             painel,
-            values=["Nenhum projeto encontrado"],
+            values=[
+                "Nenhum projeto encontrado"
+            ],
             width=350
         )
 
@@ -90,11 +99,23 @@ class VideoPage(ctk.CTkFrame):
             pady=10
         )
 
+        ctk.CTkButton(
+            painel,
+            text="Atualizar projetos",
+            width=160,
+            command=self.carregar_projetos
+        ).pack(
+            pady=(0, 20)
+        )
+
         ctk.CTkLabel(
             painel,
-            text="Duração de cada pergunta"
+            text=(
+                "Tempo para responder "
+                "(contagem regressiva)"
+            )
         ).pack(
-            pady=(25, 5)
+            pady=(10, 5)
         )
 
         self.tempo = ctk.CTkEntry(
@@ -104,11 +125,22 @@ class VideoPage(ctk.CTkFrame):
 
         self.tempo.insert(
             0,
-            "3"
+            "5"
         )
 
         self.tempo.pack(
             pady=5
+        )
+
+        ctk.CTkLabel(
+            painel,
+            text=(
+                "Nesta versão de teste serão usadas "
+                "as três primeiras perguntas."
+            ),
+            text_color="gray70"
+        ).pack(
+            pady=(10, 5)
         )
 
         self.botao_gerar = ctk.CTkButton(
@@ -120,7 +152,7 @@ class VideoPage(ctk.CTkFrame):
         )
 
         self.botao_gerar.pack(
-            pady=(30, 15)
+            pady=(25, 15)
         )
 
         self.progresso = ctk.CTkProgressBar(
@@ -138,8 +170,11 @@ class VideoPage(ctk.CTkFrame):
 
         self.status = ctk.CTkLabel(
             painel,
-            text="Selecione um projeto para começar.",
-            wraplength=600
+            text=(
+                "Selecione um projeto "
+                "para começar."
+            ),
+            wraplength=650
         )
 
         self.status.pack(
@@ -158,7 +193,9 @@ class VideoPage(ctk.CTkFrame):
         ]
 
         if not nomes:
-            nomes = ["Nenhum projeto encontrado"]
+            nomes = [
+                "Nenhum projeto encontrado"
+            ]
 
         self.seletor_projeto.configure(
             values=nomes
@@ -168,10 +205,20 @@ class VideoPage(ctk.CTkFrame):
             nomes[0]
         )
 
+        self.status.configure(
+            text=(
+                f"{len(self.projetos)} "
+                "projeto(s) encontrado(s)."
+            )
+        )
+
     def iniciar_geracao(self):
         if not self.projetos:
             self.status.configure(
-                text="Nenhum projeto foi encontrado."
+                text=(
+                    "Nenhum projeto foi "
+                    "encontrado."
+                )
             )
             return
 
@@ -180,14 +227,14 @@ class VideoPage(ctk.CTkFrame):
                 self.tempo.get().strip()
             )
 
-            if tempo < 1 or tempo > 30:
+            if tempo < 1 or tempo > 15:
                 raise ValueError
 
         except ValueError:
             self.status.configure(
                 text=(
-                    "A duração deve ser um número "
-                    "entre 1 e 30 segundos."
+                    "O tempo deve ser um número "
+                    "entre 1 e 15 segundos."
                 )
             )
             return
@@ -200,14 +247,18 @@ class VideoPage(ctk.CTkFrame):
             (
                 projeto
                 for projeto in self.projetos
-                if projeto.name == nome_selecionado
+                if projeto.name
+                == nome_selecionado
             ),
             None
         )
 
         if pasta_projeto is None:
             self.status.configure(
-                text="Não foi possível localizar o projeto."
+                text=(
+                    "Não foi possível localizar "
+                    "o projeto selecionado."
+                )
             )
             return
 
@@ -219,7 +270,10 @@ class VideoPage(ctk.CTkFrame):
 
         if not perguntas:
             self.status.configure(
-                text="O projeto não possui perguntas."
+                text=(
+                    "O projeto não possui "
+                    "perguntas."
+                )
             )
             return
 
@@ -230,8 +284,8 @@ class VideoPage(ctk.CTkFrame):
 
         self.status.configure(
             text=(
-                "Gerando o vídeo. Esta operação pode "
-                "levar alguns minutos."
+                "Gerando frames, contagem "
+                "regressiva e vídeo final..."
             )
         )
 
@@ -257,10 +311,11 @@ class VideoPage(ctk.CTkFrame):
     ):
         try:
             caminho_video = (
-                self.video_generator.gerar_video_teste(
+                self.video_generator
+                .gerar_video_teste(
                     pasta_projeto=pasta_projeto,
                     perguntas=perguntas,
-                    tempo_pergunta=tempo
+                    tempo_resposta=tempo
                 )
             )
 
@@ -277,7 +332,10 @@ class VideoPage(ctk.CTkFrame):
                 str(erro)
             )
 
-    def geracao_concluida(self, caminho_video):
+    def geracao_concluida(
+        self,
+        caminho_video
+    ):
         self.progresso.stop()
         self.progresso.set(1)
 
@@ -293,7 +351,10 @@ class VideoPage(ctk.CTkFrame):
             )
         )
 
-    def geracao_falhou(self, mensagem):
+    def geracao_falhou(
+        self,
+        mensagem
+    ):
         self.progresso.stop()
         self.progresso.set(0)
 
@@ -303,5 +364,8 @@ class VideoPage(ctk.CTkFrame):
         )
 
         self.status.configure(
-            text=f"Erro ao gerar o vídeo: {mensagem}"
+            text=(
+                "Erro ao gerar o vídeo:\n"
+                f"{mensagem}"
+            )
         )
