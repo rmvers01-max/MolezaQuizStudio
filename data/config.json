@@ -1,7 +1,7 @@
 {
-    "tempo_pergunta": 5,
-    "quantidade_perguntas": 10,
+    "tempo_pergunta": 7,
+    "quantidade_perguntas": 4,
     "resolucao": "1920x1080",
     "fps": 30,
-    "voz": "Feminina suave"
+    "voz": "Feminina alegre"
 }
