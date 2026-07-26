@@ -3,6 +3,7 @@ import customtkinter as ctk
 from ui.projects_page import ProjectsPage
 from ui.quiz_page import QuizPage
 from ui.settings_page import SettingsPage
+from ui.video_page import VideoPage
 
 
 ctk.set_appearance_mode("Dark")
@@ -72,9 +73,7 @@ class MainWindow(ctk.CTk):
             text="Vídeos",
             width=180,
             height=40,
-            command=lambda: self.mostrar_mensagem(
-                "O gerador de vídeos será criado nas próximas etapas."
-            )
+            command=self.abrir_videos
         )
 
         self.botao_videos.pack(pady=6)
@@ -85,7 +84,8 @@ class MainWindow(ctk.CTk):
             width=180,
             height=40,
             command=lambda: self.mostrar_mensagem(
-                "A tela de exportação será criada futuramente."
+                "A página de exportação será criada "
+                "nas próximas etapas."
             )
         )
 
@@ -138,6 +138,18 @@ class MainWindow(ctk.CTk):
         self.limpar_conteudo()
 
         pagina = ProjectsPage(
+            self.conteudo
+        )
+
+        pagina.pack(
+            fill="both",
+            expand=True
+        )
+
+    def abrir_videos(self):
+        self.limpar_conteudo()
+
+        pagina = VideoPage(
             self.conteudo
         )
 
