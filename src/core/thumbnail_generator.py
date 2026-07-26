@@ -20,9 +20,7 @@ class ThumbnailGenerator:
             "C:/Windows/Fonts"
         )
 
-        self.branding_manager = (
-            BrandingManager()
-        )
+        self.branding_manager = BrandingManager()
 
     def gerar(
         self,
@@ -67,7 +65,7 @@ class ThumbnailGenerator:
             desenho
         )
 
-        self._desenhar_sombra_principal(
+        self._desenhar_painel_principal(
             desenho
         )
 
@@ -88,9 +86,7 @@ class ThumbnailGenerator:
 
         self._desenhar_quantidade(
             desenho=desenho,
-            quantidade_perguntas=(
-                quantidade_perguntas
-            )
+            quantidade_perguntas=quantidade_perguntas
         )
 
         self._desenhar_mascote(
@@ -238,7 +234,7 @@ class ThumbnailGenerator:
                 width=4
             )
 
-    def _desenhar_sombra_principal(
+    def _desenhar_painel_principal(
         self,
         desenho: ImageDraw.ImageDraw
     ):
@@ -360,7 +356,9 @@ class ThumbnailGenerator:
         texto: str
     ):
         texto = (
-            texto.strip().upper()
+            str(
+                texto
+            ).strip().upper()
             or "VOCÊ CONSEGUE ACERTAR?"
         )
 
@@ -391,7 +389,9 @@ class ThumbnailGenerator:
         tema: str
     ):
         tema = (
-            tema.strip().upper()
+            str(
+                tema
+            ).strip().upper()
             or "QUIZ"
         )
 
@@ -700,13 +700,19 @@ class ThumbnailGenerator:
         base_rgba.alpha_composite(
             camada_mascote,
             (
-                int(posicao_x),
-                int(posicao_y)
+                int(
+                    posicao_x
+                ),
+                int(
+                    posicao_y
+                )
             )
         )
 
         imagem_base.paste(
-            base_rgba.convert("RGB")
+            base_rgba.convert(
+                "RGB"
+            )
         )
 
         return True
@@ -930,13 +936,19 @@ class ThumbnailGenerator:
         base_rgba.alpha_composite(
             elemento,
             (
-                int(posicao_x),
-                int(posicao_y)
+                int(
+                    posicao_x
+                ),
+                int(
+                    posicao_y
+                )
             )
         )
 
         imagem_base.paste(
-            base_rgba.convert("RGB")
+            base_rgba.convert(
+                "RGB"
+            )
         )
 
         return True
@@ -953,7 +965,8 @@ class ThumbnailGenerator:
                 [
                     "arialbd.ttf",
                     "calibrib.ttf",
-                    "segoeuib.ttf"
+                    "segoeuib.ttf",
+                    "impact.ttf"
                 ]
             )
 
@@ -977,7 +990,9 @@ class ThumbnailGenerator:
 
             try:
                 return ImageFont.truetype(
-                    str(caminho),
+                    str(
+                        caminho
+                    ),
                     tamanho
                 )
 
@@ -1053,7 +1068,9 @@ class ThumbnailGenerator:
                 largura_maxima=largura_maxima
             )
 
-            if len(linhas) <= maximo_linhas:
+            if len(
+                linhas
+            ) <= maximo_linhas:
                 return linhas, fonte
 
         fonte = self._carregar_fonte(
@@ -1068,14 +1085,14 @@ class ThumbnailGenerator:
             largura_maxima=largura_maxima
         )
 
-        if len(linhas) > maximo_linhas:
+        if len(
+            linhas
+        ) > maximo_linhas:
             linhas = linhas[
                 :maximo_linhas
             ]
 
-            ultima_linha = (
-                linhas[-1]
-            )
+            ultima_linha = linhas[-1]
 
             while ultima_linha:
                 texto_teste = (
