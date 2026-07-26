@@ -1,5 +1,6 @@
 import customtkinter as ctk
 
+from ui.export_page import ExportPage
 from ui.projects_page import ProjectsPage
 from ui.quiz_page import QuizPage
 from ui.settings_page import SettingsPage
@@ -15,9 +16,18 @@ class MainWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Moleza Quiz Studio")
-        self.geometry("1400x800")
-        self.minsize(1000, 650)
+        self.title(
+            "Moleza Quiz Studio"
+        )
+
+        self.geometry(
+            "1400x800"
+        )
+
+        self.minsize(
+            1000,
+            650
+        )
 
         self.criar_interface()
 
@@ -38,7 +48,9 @@ class MainWindow(ctk.CTk):
             fill="y"
         )
 
-        self.menu.pack_propagate(False)
+        self.menu.pack_propagate(
+            False
+        )
 
         ctk.CTkLabel(
             self.menu,
@@ -48,58 +60,85 @@ class MainWindow(ctk.CTk):
             pady=(35, 30)
         )
 
-        self.botao_criar_quiz = ctk.CTkButton(
-            self.menu,
-            text="Criar Quiz",
-            width=180,
-            height=40,
-            command=self.abrir_criador_quiz
-        )
-
-        self.botao_criar_quiz.pack(pady=6)
-
-        self.botao_projetos = ctk.CTkButton(
-            self.menu,
-            text="Projetos",
-            width=180,
-            height=40,
-            command=self.abrir_projetos
-        )
-
-        self.botao_projetos.pack(pady=6)
-
-        self.botao_videos = ctk.CTkButton(
-            self.menu,
-            text="Vídeos",
-            width=180,
-            height=40,
-            command=self.abrir_videos
-        )
-
-        self.botao_videos.pack(pady=6)
-
-        self.botao_exportar = ctk.CTkButton(
-            self.menu,
-            text="Exportar",
-            width=180,
-            height=40,
-            command=lambda: self.mostrar_mensagem(
-                "A página de exportação será criada "
-                "nas próximas etapas."
+        self.botao_criar_quiz = (
+            ctk.CTkButton(
+                self.menu,
+                text="Criar Quiz",
+                width=180,
+                height=40,
+                command=(
+                    self.abrir_criador_quiz
+                )
             )
         )
 
-        self.botao_exportar.pack(pady=6)
-
-        self.botao_configuracoes = ctk.CTkButton(
-            self.menu,
-            text="Configurações",
-            width=180,
-            height=40,
-            command=self.abrir_configuracoes
+        self.botao_criar_quiz.pack(
+            pady=6
         )
 
-        self.botao_configuracoes.pack(pady=6)
+        self.botao_projetos = (
+            ctk.CTkButton(
+                self.menu,
+                text="Projetos",
+                width=180,
+                height=40,
+                command=(
+                    self.abrir_projetos
+                )
+            )
+        )
+
+        self.botao_projetos.pack(
+            pady=6
+        )
+
+        self.botao_videos = (
+            ctk.CTkButton(
+                self.menu,
+                text="Vídeos",
+                width=180,
+                height=40,
+                command=(
+                    self.abrir_videos
+                )
+            )
+        )
+
+        self.botao_videos.pack(
+            pady=6
+        )
+
+        self.botao_exportar = (
+            ctk.CTkButton(
+                self.menu,
+                text="Exportar",
+                width=180,
+                height=40,
+                command=(
+                    self.abrir_exportacao
+                )
+            )
+        )
+
+        self.botao_exportar.pack(
+            pady=6
+        )
+
+        self.botao_configuracoes = (
+            ctk.CTkButton(
+                self.menu,
+                text="Configurações",
+                width=180,
+                height=40,
+                command=(
+                    self.abrir_configuracoes
+                )
+            )
+        )
+
+        self.botao_configuracoes.pack(
+            pady=6
+        )
 
         # =====================================
         # ÁREA PRINCIPAL
@@ -119,7 +158,10 @@ class MainWindow(ctk.CTk):
         self.abrir_criador_quiz()
 
     def limpar_conteudo(self):
-        for widget in self.conteudo.winfo_children():
+        for widget in (
+            self.conteudo
+            .winfo_children()
+        ):
             widget.destroy()
 
     def abrir_criador_quiz(self):
@@ -158,6 +200,18 @@ class MainWindow(ctk.CTk):
             expand=True
         )
 
+    def abrir_exportacao(self):
+        self.limpar_conteudo()
+
+        pagina = ExportPage(
+            self.conteudo
+        )
+
+        pagina.pack(
+            fill="both",
+            expand=True
+        )
+
     def abrir_configuracoes(self):
         self.limpar_conteudo()
 
@@ -168,29 +222,4 @@ class MainWindow(ctk.CTk):
         pagina.pack(
             fill="both",
             expand=True
-        )
-
-    def mostrar_mensagem(self, mensagem):
-        self.limpar_conteudo()
-
-        painel = ctk.CTkFrame(
-            self.conteudo
-        )
-
-        painel.pack(
-            fill="both",
-            expand=True,
-            padx=30,
-            pady=30
-        )
-
-        ctk.CTkLabel(
-            painel,
-            text=mensagem,
-            font=("Arial", 22, "bold"),
-            wraplength=600
-        ).pack(
-            expand=True,
-            padx=30,
-            pady=30
         )
