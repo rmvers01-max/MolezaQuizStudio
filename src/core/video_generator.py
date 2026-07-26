@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from moviepy import (
     AudioFileClip,
+    CompositeAudioClip,
     ImageClip,
     concatenate_audioclips,
     concatenate_videoclips
@@ -28,6 +29,8 @@ class VideoGenerator:
         limite_perguntas=None,
         caminho_musica=None,
         volume_musica=0.15,
+        volume_narracao=1.0,
+        usar_narracao=True,
         titulo_quiz="Moleza Quiz",
         texto_encerramento=(
             "Comente quantos pontos você fez!"
@@ -36,14 +39,17 @@ class VideoGenerator:
         incluir_encerramento=True,
         callback_progresso=None
     ):
-        pasta_projeto = Path(
-            pasta_projeto
-        )
+        pasta_projeto = Path(pasta_projeto)
 
         pasta_frames = (
             pasta_projeto
             / "videos"
             / "frames"
+        )
+
+        pasta_audios = (
+            pasta_projeto
+            / "audios"
         )
 
         pasta_exportado = (
@@ -78,25 +84,30 @@ class VideoGenerator:
         )
 
         clips_video = []
+        clips_narracao = []
 
         video_final = None
         video_com_audio = None
-        audio_original = None
-        audio_repetido = None
-        audio_final = None
+
+        audio_musica_original = None
+        audio_musica_repetido = None
+        audio_musica_final = None
+        audio_composto = None
+
+        tempo_atual = 0.0
 
         try:
 
-            # =====================================
+            # ==================================
             # ABERTURA
-            # =====================================
+            # ==================================
 
             if incluir_abertura:
                 self._informar_progresso(
                     callback_progresso,
                     0,
                     total_perguntas,
-                    "Criando a tela de abertura..."
+                    "Criando tela de abertura..."
                 )
 
                 caminho_abertura = (
@@ -110,17 +121,21 @@ class VideoGenerator:
                     quantidade=total_perguntas
                 )
 
-                clip_abertura = ImageClip(
-                    str(caminho_abertura)
-                ).with_duration(3)
+                duracao_abertura = 3
 
                 clips_video.append(
-                    clip_abertura
+                    ImageClip(
+                        str(caminho_abertura)
+                    ).with_duration(
+                        duracao_abertura
+                    )
                 )
 
-            # =====================================
+                tempo_atual += duracao_abertura
+
+            # ==================================
             # PERGUNTAS
-            # =====================================
+            # ==================================
 
             for numero, pergunta in enumerate(
                 perguntas_selecionadas,
@@ -137,31 +152,41 @@ class VideoGenerator:
                     )
                 )
 
-                clips_da_pergunta = (
+                resultado = (
                     self._criar_clips_da_pergunta(
                         pasta_frames=pasta_frames,
+                        pasta_audios=pasta_audios,
                         numero=numero,
                         pergunta=pergunta,
-                        tempo_resposta=(
-                            tempo_resposta
-                        )
+                        tempo_resposta=tempo_resposta,
+                        tempo_inicio=tempo_atual,
+                        usar_narracao=usar_narracao,
+                        volume_narracao=volume_narracao
                     )
                 )
 
                 clips_video.extend(
-                    clips_da_pergunta
+                    resultado["clips_video"]
                 )
 
-            # =====================================
+                clips_narracao.extend(
+                    resultado["clips_audio"]
+                )
+
+                tempo_atual += resultado[
+                    "duracao_total"
+                ]
+
+            # ==================================
             # ENCERRAMENTO
-            # =====================================
+            # ==================================
 
             if incluir_encerramento:
                 self._informar_progresso(
                     callback_progresso,
                     total_perguntas,
                     total_perguntas,
-                    "Criando a tela de encerramento..."
+                    "Criando tela de encerramento..."
                 )
 
                 caminho_encerramento = (
@@ -174,17 +199,21 @@ class VideoGenerator:
                     texto=texto_encerramento
                 )
 
-                clip_encerramento = ImageClip(
-                    str(caminho_encerramento)
-                ).with_duration(4)
+                duracao_encerramento = 4
 
                 clips_video.append(
-                    clip_encerramento
+                    ImageClip(
+                        str(caminho_encerramento)
+                    ).with_duration(
+                        duracao_encerramento
+                    )
                 )
 
-            # =====================================
-            # MONTAGEM
-            # =====================================
+                tempo_atual += duracao_encerramento
+
+            # ==================================
+            # MONTAGEM DO VÍDEO
+            # ==================================
 
             self._informar_progresso(
                 callback_progresso,
@@ -193,25 +222,23 @@ class VideoGenerator:
                 "Montando o vídeo final..."
             )
 
-            video_final = (
-                concatenate_videoclips(
-                    clips_video,
-                    method="compose"
-                )
+            video_final = concatenate_videoclips(
+                clips_video,
+                method="compose"
             )
 
-            video_para_exportar = video_final
+            fontes_audio = []
 
-            # =====================================
-            # MÚSICA
-            # =====================================
+            # ==================================
+            # MÚSICA DE FUNDO
+            # ==================================
 
             if caminho_musica:
                 self._informar_progresso(
                     callback_progresso,
                     total_perguntas,
                     total_perguntas,
-                    "Adicionando música de fundo..."
+                    "Preparando música de fundo..."
                 )
 
                 caminho_musica = Path(
@@ -224,14 +251,16 @@ class VideoGenerator:
                         "não foi encontrado."
                     )
 
-                audio_original = AudioFileClip(
-                    str(caminho_musica)
+                audio_musica_original = (
+                    AudioFileClip(
+                        str(caminho_musica)
+                    )
                 )
 
-                audio_repetido = (
+                audio_musica_repetido = (
                     self._preparar_musica(
                         audio_original=(
-                            audio_original
+                            audio_musica_original
                         ),
                         duracao_video=(
                             video_final.duration
@@ -239,16 +268,42 @@ class VideoGenerator:
                     )
                 )
 
-                audio_final = (
-                    audio_repetido
+                audio_musica_final = (
+                    audio_musica_repetido
                     .with_volume_scaled(
                         volume_musica
                     )
                 )
 
+                fontes_audio.append(
+                    audio_musica_final
+                )
+
+            # ==================================
+            # NARRAÇÕES
+            # ==================================
+
+            fontes_audio.extend(
+                clips_narracao
+            )
+
+            if fontes_audio:
+                self._informar_progresso(
+                    callback_progresso,
+                    total_perguntas,
+                    total_perguntas,
+                    "Misturando música e narração..."
+                )
+
+                audio_composto = CompositeAudioClip(
+                    fontes_audio
+                ).with_duration(
+                    video_final.duration
+                )
+
                 video_com_audio = (
                     video_final.with_audio(
-                        audio_final
+                        audio_composto
                     )
                 )
 
@@ -256,20 +311,23 @@ class VideoGenerator:
                     video_com_audio
                 )
 
-            # =====================================
-            # EXPORTAÇÃO
-            # =====================================
-
-            data_hora = (
-                datetime.now().strftime(
-                    "%Y%m%d_%H%M%S"
+            else:
+                video_para_exportar = (
+                    video_final
                 )
+
+            # ==================================
+            # EXPORTAÇÃO
+            # ==================================
+
+            data_hora = datetime.now().strftime(
+                "%Y%m%d_%H%M%S"
             )
 
             caminho_saida = (
                 pasta_exportado
                 / (
-                    f"moleza_quiz_"
+                    "moleza_quiz_"
                     f"{data_hora}.mp4"
                 )
             )
@@ -278,7 +336,7 @@ class VideoGenerator:
                 callback_progresso,
                 total_perguntas,
                 total_perguntas,
-                "Renderizando o arquivo MP4..."
+                "Renderizando arquivo MP4..."
             )
 
             video_para_exportar.write_videofile(
@@ -286,7 +344,7 @@ class VideoGenerator:
                 fps=self.fps,
                 codec="libx264",
                 audio_codec="aac",
-                audio=bool(caminho_musica),
+                audio=bool(fontes_audio),
                 preset="medium",
                 threads=4,
                 logger=None
@@ -305,20 +363,190 @@ class VideoGenerator:
             if video_com_audio is not None:
                 video_com_audio.close()
 
-            if audio_final is not None:
-                audio_final.close()
+            if audio_composto is not None:
+                audio_composto.close()
 
-            if audio_repetido is not None:
-                audio_repetido.close()
+            for clip_audio in clips_narracao:
+                clip_audio.close()
 
-            if audio_original is not None:
-                audio_original.close()
+            if audio_musica_final is not None:
+                audio_musica_final.close()
+
+            if audio_musica_repetido is not None:
+                audio_musica_repetido.close()
+
+            if audio_musica_original is not None:
+                audio_musica_original.close()
 
             if video_final is not None:
                 video_final.close()
 
-            for clip in clips_video:
-                clip.close()
+            for clip_video in clips_video:
+                clip_video.close()
+
+    def _criar_clips_da_pergunta(
+        self,
+        pasta_frames,
+        pasta_audios,
+        numero,
+        pergunta,
+        tempo_resposta,
+        tempo_inicio,
+        usar_narracao,
+        volume_narracao
+    ):
+        clips_video = []
+        clips_audio = []
+
+        caminho_audio_pergunta = (
+            pasta_audios
+            / f"pergunta_{numero:03d}.mp3"
+        )
+
+        caminho_audio_resposta = (
+            pasta_audios
+            / f"resposta_{numero:03d}.mp3"
+        )
+
+        audio_pergunta = None
+        audio_resposta = None
+
+        # A apresentação dura ao menos 1 segundo.
+        duracao_pergunta = 1.0
+
+        if (
+            usar_narracao
+            and caminho_audio_pergunta.exists()
+        ):
+            audio_pergunta = AudioFileClip(
+                str(caminho_audio_pergunta)
+            ).with_volume_scaled(
+                volume_narracao
+            )
+
+            duracao_pergunta = max(
+                audio_pergunta.duration + 0.5,
+                1.0
+            )
+
+            clips_audio.append(
+                audio_pergunta.with_start(
+                    tempo_inicio
+                )
+            )
+
+        caminho_frame_pergunta = (
+            pasta_frames
+            / f"pergunta_{numero:03d}.png"
+        )
+
+        self._criar_frame_pergunta(
+            caminho=caminho_frame_pergunta,
+            numero=numero,
+            pergunta=pergunta
+        )
+
+        clips_video.append(
+            ImageClip(
+                str(caminho_frame_pergunta)
+            ).with_duration(
+                duracao_pergunta
+            )
+        )
+
+        tempo_depois_pergunta = (
+            tempo_inicio + duracao_pergunta
+        )
+
+        # Contagem regressiva.
+        for contador in range(
+            tempo_resposta,
+            0,
+            -1
+        ):
+            caminho_contagem = (
+                pasta_frames
+                / (
+                    f"pergunta_{numero:03d}"
+                    f"_contador_{contador}.png"
+                )
+            )
+
+            self._criar_frame_contagem(
+                caminho=caminho_contagem,
+                numero=numero,
+                pergunta=pergunta,
+                contador=contador
+            )
+
+            clips_video.append(
+                ImageClip(
+                    str(caminho_contagem)
+                ).with_duration(1)
+            )
+
+        tempo_inicio_resposta = (
+            tempo_depois_pergunta
+            + tempo_resposta
+        )
+
+        # A resposta permanece por ao menos 2 segundos.
+        duracao_resposta = 2.0
+
+        if (
+            usar_narracao
+            and caminho_audio_resposta.exists()
+        ):
+            audio_resposta = AudioFileClip(
+                str(caminho_audio_resposta)
+            ).with_volume_scaled(
+                volume_narracao
+            )
+
+            duracao_resposta = max(
+                audio_resposta.duration + 0.5,
+                2.0
+            )
+
+            clips_audio.append(
+                audio_resposta.with_start(
+                    tempo_inicio_resposta
+                )
+            )
+
+        caminho_frame_resposta = (
+            pasta_frames
+            / (
+                f"pergunta_{numero:03d}"
+                "_resposta.png"
+            )
+        )
+
+        self._criar_frame_resposta(
+            caminho=caminho_frame_resposta,
+            numero=numero,
+            pergunta=pergunta
+        )
+
+        clips_video.append(
+            ImageClip(
+                str(caminho_frame_resposta)
+            ).with_duration(
+                duracao_resposta
+            )
+        )
+
+        duracao_total = (
+            duracao_pergunta
+            + tempo_resposta
+            + duracao_resposta
+        )
+
+        return {
+            "clips_video": clips_video,
+            "clips_audio": clips_audio,
+            "duracao_total": duracao_total
+        }
 
     def _preparar_musica(
         self,
@@ -331,10 +559,7 @@ class VideoGenerator:
                 "a duração da música."
             )
 
-        if (
-            audio_original.duration
-            >= duracao_video
-        ):
+        if audio_original.duration >= duracao_video:
             return audio_original.subclipped(
                 0,
                 duracao_video
@@ -363,79 +588,19 @@ class VideoGenerator:
             duracao_video
         )
 
-    def _criar_clips_da_pergunta(
+    def _informar_progresso(
         self,
-        pasta_frames,
-        numero,
-        pergunta,
-        tempo_resposta
+        callback,
+        atual,
+        total,
+        mensagem
     ):
-        clips = []
-
-        caminho_pergunta = (
-            pasta_frames
-            / f"pergunta_{numero:03d}.png"
-        )
-
-        self._criar_frame_pergunta(
-            caminho=caminho_pergunta,
-            numero=numero,
-            pergunta=pergunta
-        )
-
-        clips.append(
-            ImageClip(
-                str(caminho_pergunta)
-            ).with_duration(1)
-        )
-
-        for contador in range(
-            tempo_resposta,
-            0,
-            -1
-        ):
-            caminho_contagem = (
-                pasta_frames
-                / (
-                    f"pergunta_{numero:03d}"
-                    f"_contador_{contador}.png"
-                )
+        if callback is not None:
+            callback(
+                atual,
+                total,
+                mensagem
             )
-
-            self._criar_frame_contagem(
-                caminho=caminho_contagem,
-                numero=numero,
-                pergunta=pergunta,
-                contador=contador
-            )
-
-            clips.append(
-                ImageClip(
-                    str(caminho_contagem)
-                ).with_duration(1)
-            )
-
-        caminho_resposta = (
-            pasta_frames
-            / (
-                f"pergunta_{numero:03d}"
-                f"_resposta.png"
-            )
-        )
-
-        self._criar_frame_resposta(
-            caminho=caminho_resposta,
-            numero=numero,
-            pergunta=pergunta
-        )
-
-        clips.append(
-            ImageClip(
-                str(caminho_resposta)
-            ).with_duration(2)
-        )
-
-        return clips
 
     def _criar_frame_abertura(
         self,
@@ -444,17 +609,12 @@ class VideoGenerator:
         quantidade
     ):
         imagem = Image.new(
-            mode="RGB",
-            size=(
-                self.largura,
-                self.altura
-            ),
-            color=(24, 66, 42)
+            "RGB",
+            (self.largura, self.altura),
+            (24, 66, 42)
         )
 
-        desenho = ImageDraw.Draw(
-            imagem
-        )
+        desenho = ImageDraw.Draw(imagem)
 
         desenho.rounded_rectangle(
             (90, 70, 1190, 650),
@@ -462,46 +622,33 @@ class VideoGenerator:
             fill=(240, 245, 236)
         )
 
-        fonte_logo = self._carregar_fonte(
-            42
-        )
-
-        fonte_titulo = self._carregar_fonte(
-            60
-        )
-
-        fonte_subtitulo = (
-            self._carregar_fonte(31)
-        )
+        fonte_logo = self._carregar_fonte(42)
+        fonte_titulo = self._carregar_fonte(60)
+        fonte_subtitulo = self._carregar_fonte(31)
 
         desenho.text(
             (150, 120),
-            "🦥 MOLEZA QUIZ",
+            "MOLEZA QUIZ",
             font=fonte_logo,
             fill=(35, 100, 60)
         )
 
-        linhas_titulo = textwrap.wrap(
-            titulo,
-            width=28
-        )
-
         y = 250
 
-        for linha in linhas_titulo:
+        for linha in textwrap.wrap(
+            titulo,
+            width=28
+        ):
             caixa = desenho.textbbox(
                 (0, 0),
                 linha,
                 font=fonte_titulo
             )
 
-            largura = (
-                caixa[2] - caixa[0]
-            )
+            largura = caixa[2] - caixa[0]
 
             x = (
-                self.largura
-                - largura
+                self.largura - largura
             ) / 2
 
             desenho.text(
@@ -517,24 +664,19 @@ class VideoGenerator:
             f"{quantidade} perguntas"
         )
 
-        caixa_quantidade = desenho.textbbox(
+        caixa = desenho.textbbox(
             (0, 0),
             texto_quantidade,
             font=fonte_subtitulo
         )
 
-        largura_quantidade = (
-            caixa_quantidade[2]
-            - caixa_quantidade[0]
-        )
-
-        x_quantidade = (
-            self.largura
-            - largura_quantidade
-        ) / 2
+        largura = caixa[2] - caixa[0]
 
         desenho.text(
-            (x_quantidade, 500),
+            (
+                (self.largura - largura) / 2,
+                500
+            ),
             texto_quantidade,
             font=fonte_subtitulo,
             fill=(70, 90, 75)
@@ -555,17 +697,12 @@ class VideoGenerator:
         texto
     ):
         imagem = Image.new(
-            mode="RGB",
-            size=(
-                self.largura,
-                self.altura
-            ),
-            color=(24, 66, 42)
+            "RGB",
+            (self.largura, self.altura),
+            (24, 66, 42)
         )
 
-        desenho = ImageDraw.Draw(
-            imagem
-        )
+        desenho = ImageDraw.Draw(imagem)
 
         desenho.rounded_rectangle(
             (90, 70, 1190, 650),
@@ -573,17 +710,9 @@ class VideoGenerator:
             fill=(240, 245, 236)
         )
 
-        fonte_titulo = self._carregar_fonte(
-            58
-        )
-
-        fonte_texto = self._carregar_fonte(
-            36
-        )
-
-        fonte_botao = self._carregar_fonte(
-            30
-        )
+        fonte_titulo = self._carregar_fonte(58)
+        fonte_texto = self._carregar_fonte(36)
+        fonte_botao = self._carregar_fonte(30)
 
         desenho.text(
             (350, 150),
@@ -592,31 +721,25 @@ class VideoGenerator:
             fill=(35, 100, 60)
         )
 
-        linhas = textwrap.wrap(
-            texto,
-            width=38
-        )
-
         y = 290
 
-        for linha in linhas:
+        for linha in textwrap.wrap(
+            texto,
+            width=38
+        ):
             caixa = desenho.textbbox(
                 (0, 0),
                 linha,
                 font=fonte_texto
             )
 
-            largura = (
-                caixa[2] - caixa[0]
-            )
-
-            x = (
-                self.largura
-                - largura
-            ) / 2
+            largura = caixa[2] - caixa[0]
 
             desenho.text(
-                (x, y),
+                (
+                    (self.largura - largura) / 2,
+                    y
+                ),
                 linha,
                 font=fonte_texto,
                 fill=(35, 45, 38)
@@ -646,29 +769,13 @@ class VideoGenerator:
 
         imagem.save(caminho)
 
-    def _informar_progresso(
-        self,
-        callback,
-        atual,
-        total,
-        mensagem
-    ):
-        if callback is not None:
-            callback(
-                atual,
-                total,
-                mensagem
-            )
-
     def _criar_frame_pergunta(
         self,
         caminho,
         numero,
         pergunta
     ):
-        imagem, desenho = (
-            self._criar_base()
-        )
+        imagem, desenho = self._criar_base()
 
         self._desenhar_cabecalho(
             desenho,
@@ -682,10 +789,7 @@ class VideoGenerator:
 
         desenho.text(
             (100, 625),
-            (
-                "Prepare-se! "
-                "A contagem vai começar."
-            ),
+            "Ouça a pergunta e prepare sua resposta!",
             font=self._carregar_fonte(24),
             fill=(65, 90, 70)
         )
@@ -699,9 +803,7 @@ class VideoGenerator:
         pergunta,
         contador
     ):
-        imagem, desenho = (
-            self._criar_base()
-        )
+        imagem, desenho = self._criar_base()
 
         self._desenhar_cabecalho(
             desenho,
@@ -718,38 +820,23 @@ class VideoGenerator:
             fill=(35, 110, 65)
         )
 
-        fonte_contador = (
-            self._carregar_fonte(55)
-        )
-
+        fonte_contador = self._carregar_fonte(55)
         texto = str(contador)
 
-        caixa_texto = desenho.textbbox(
+        caixa = desenho.textbbox(
             (0, 0),
             texto,
             font=fonte_contador
         )
 
-        largura_texto = (
-            caixa_texto[2]
-            - caixa_texto[0]
-        )
-
-        altura_texto = (
-            caixa_texto[3]
-            - caixa_texto[1]
-        )
-
-        x = 1135 - (
-            largura_texto / 2
-        )
-
-        y = 600 - (
-            altura_texto / 2
-        ) - 8
+        largura = caixa[2] - caixa[0]
+        altura = caixa[3] - caixa[1]
 
         desenho.text(
-            (x, y),
+            (
+                1135 - (largura / 2),
+                600 - (altura / 2) - 8
+            ),
             texto,
             font=fonte_contador,
             fill=(255, 255, 255)
@@ -757,10 +844,7 @@ class VideoGenerator:
 
         desenho.text(
             (100, 625),
-            (
-                "Responda antes que "
-                "o tempo acabe!"
-            ),
+            "Responda antes que o tempo acabe!",
             font=self._carregar_fonte(24),
             fill=(65, 90, 70)
         )
@@ -773,9 +857,7 @@ class VideoGenerator:
         numero,
         pergunta
     ):
-        imagem, desenho = (
-            self._criar_base()
-        )
+        imagem, desenho = self._criar_base()
 
         self._desenhar_cabecalho(
             desenho,
@@ -787,9 +869,7 @@ class VideoGenerator:
             "Pergunta sem texto"
         )
 
-        fonte_pergunta = (
-            self._carregar_fonte(40)
-        )
+        fonte_pergunta = self._carregar_fonte(40)
 
         y = 175
 
@@ -849,17 +929,12 @@ class VideoGenerator:
 
     def _criar_base(self):
         imagem = Image.new(
-            mode="RGB",
-            size=(
-                self.largura,
-                self.altura
-            ),
-            color=(25, 45, 35)
+            "RGB",
+            (self.largura, self.altura),
+            (25, 45, 35)
         )
 
-        desenho = ImageDraw.Draw(
-            imagem
-        )
+        desenho = ImageDraw.Draw(imagem)
 
         desenho.rounded_rectangle(
             (60, 45, 1220, 675),
@@ -899,13 +974,8 @@ class VideoGenerator:
             []
         )
 
-        fonte_pergunta = (
-            self._carregar_fonte(38)
-        )
-
-        fonte_alternativa = (
-            self._carregar_fonte(28)
-        )
+        fonte_pergunta = self._carregar_fonte(38)
+        fonte_alternativa = self._carregar_fonte(28)
 
         y = 170
 
@@ -961,14 +1031,10 @@ class VideoGenerator:
         if isinstance(resposta, int):
             indice = resposta
 
-            if 1 <= indice <= len(
-                alternativas
-            ):
+            if 1 <= indice <= len(alternativas):
                 indice -= 1
 
-            if 0 <= indice < len(
-                alternativas
-            ):
+            if 0 <= indice < len(alternativas):
                 letra = chr(65 + indice)
 
                 return (
@@ -986,9 +1052,7 @@ class VideoGenerator:
             if letra in "ABCD":
                 indice = ord(letra) - 65
 
-                if indice < len(
-                    alternativas
-                ):
+                if indice < len(alternativas):
                     return (
                         f"{letra}) "
                         f"{alternativas[indice]}"
@@ -1001,15 +1065,9 @@ class VideoGenerator:
         tamanho
     ):
         fontes_possiveis = [
-            Path(
-                "C:/Windows/Fonts/arial.ttf"
-            ),
-            Path(
-                "C:/Windows/Fonts/calibri.ttf"
-            ),
-            Path(
-                "C:/Windows/Fonts/segoeui.ttf"
-            )
+            Path("C:/Windows/Fonts/arial.ttf"),
+            Path("C:/Windows/Fonts/calibri.ttf"),
+            Path("C:/Windows/Fonts/segoeui.ttf")
         ]
 
         for caminho_fonte in fontes_possiveis:

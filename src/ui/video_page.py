@@ -2,7 +2,6 @@ from pathlib import Path
 import threading
 
 import customtkinter as ctk
-
 from tkinter import filedialog
 
 from core.project_manager import ProjectManager
@@ -14,13 +13,8 @@ class VideoPage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
 
-        self.project_manager = (
-            ProjectManager()
-        )
-
-        self.video_generator = (
-            VideoGenerator()
-        )
+        self.project_manager = ProjectManager()
+        self.video_generator = VideoGenerator()
 
         self.projetos = []
         self.caminho_musica = None
@@ -61,8 +55,8 @@ class VideoPage(ctk.CTkFrame):
         ctk.CTkLabel(
             cabecalho,
             text=(
-                "Crie vídeos com abertura, "
-                "quiz, música e encerramento."
+                "Crie vídeos com narração, música, "
+                "contagem regressiva e respostas."
             ),
             text_color="gray70"
         ).pack(
@@ -70,9 +64,7 @@ class VideoPage(ctk.CTkFrame):
             pady=(5, 0)
         )
 
-        painel = ctk.CTkScrollableFrame(
-            self
-        )
+        painel = ctk.CTkScrollableFrame(self)
 
         painel.grid(
             row=1,
@@ -82,9 +74,9 @@ class VideoPage(ctk.CTkFrame):
             pady=(0, 30)
         )
 
-        # =====================================
+        # ==================================
         # PROJETO
-        # =====================================
+        # ==================================
 
         ctk.CTkLabel(
             painel,
@@ -94,19 +86,13 @@ class VideoPage(ctk.CTkFrame):
             pady=(30, 10)
         )
 
-        self.seletor_projeto = (
-            ctk.CTkOptionMenu(
-                painel,
-                values=[
-                    "Nenhum projeto encontrado"
-                ],
-                width=350
-            )
+        self.seletor_projeto = ctk.CTkOptionMenu(
+            painel,
+            values=["Nenhum projeto encontrado"],
+            width=350
         )
 
-        self.seletor_projeto.pack(
-            pady=10
-        )
+        self.seletor_projeto.pack(pady=10)
 
         ctk.CTkButton(
             painel,
@@ -117,9 +103,9 @@ class VideoPage(ctk.CTkFrame):
             pady=(0, 18)
         )
 
-        # =====================================
+        # ==================================
         # TEMPO E MODO
-        # =====================================
+        # ==================================
 
         ctk.CTkLabel(
             painel,
@@ -133,10 +119,7 @@ class VideoPage(ctk.CTkFrame):
             width=120
         )
 
-        self.tempo.insert(
-            0,
-            "5"
-        )
+        self.tempo.insert(0, "5")
 
         self.tempo.pack(
             pady=(0, 15)
@@ -166,9 +149,63 @@ class VideoPage(ctk.CTkFrame):
             pady=(0, 20)
         )
 
-        # =====================================
+        # ==================================
+        # NARRAÇÃO
+        # ==================================
+
+        ctk.CTkLabel(
+            painel,
+            text="Narração",
+            font=("Arial", 18, "bold")
+        ).pack(
+            pady=(10, 8)
+        )
+
+        self.usar_narracao = ctk.CTkCheckBox(
+            painel,
+            text=(
+                "Usar as narrações existentes "
+                "na pasta do projeto"
+            )
+        )
+
+        self.usar_narracao.select()
+
+        self.usar_narracao.pack(
+            pady=(0, 10)
+        )
+
+        self.texto_volume_narracao = (
+            ctk.CTkLabel(
+                painel,
+                text="Volume da narração: 100%"
+            )
+        )
+
+        self.texto_volume_narracao.pack(
+            pady=(5, 5)
+        )
+
+        self.volume_narracao = ctk.CTkSlider(
+            painel,
+            from_=0,
+            to=150,
+            number_of_steps=150,
+            width=350,
+            command=(
+                self.atualizar_volume_narracao
+            )
+        )
+
+        self.volume_narracao.set(100)
+
+        self.volume_narracao.pack(
+            pady=(0, 20)
+        )
+
+        # ==================================
         # ABERTURA
-        # =====================================
+        # ==================================
 
         ctk.CTkLabel(
             painel,
@@ -178,11 +215,9 @@ class VideoPage(ctk.CTkFrame):
             pady=(10, 8)
         )
 
-        self.usar_abertura = (
-            ctk.CTkCheckBox(
-                painel,
-                text="Incluir tela de abertura"
-            )
+        self.usar_abertura = ctk.CTkCheckBox(
+            painel,
+            text="Incluir tela de abertura"
         )
 
         self.usar_abertura.select()
@@ -191,19 +226,10 @@ class VideoPage(ctk.CTkFrame):
             pady=(0, 10)
         )
 
-        ctk.CTkLabel(
-            painel,
-            text="Título da abertura"
-        ).pack(
-            pady=(5, 5)
-        )
-
         self.titulo_quiz = ctk.CTkEntry(
             painel,
             width=420,
-            placeholder_text=(
-                "Ex.: Quiz de Animais"
-            )
+            placeholder_text="Título do quiz"
         )
 
         self.titulo_quiz.insert(
@@ -215,9 +241,9 @@ class VideoPage(ctk.CTkFrame):
             pady=(0, 20)
         )
 
-        # =====================================
+        # ==================================
         # ENCERRAMENTO
-        # =====================================
+        # ==================================
 
         ctk.CTkLabel(
             painel,
@@ -231,8 +257,7 @@ class VideoPage(ctk.CTkFrame):
             ctk.CTkCheckBox(
                 painel,
                 text=(
-                    "Incluir tela "
-                    "de encerramento"
+                    "Incluir tela de encerramento"
                 )
             )
         )
@@ -241,13 +266,6 @@ class VideoPage(ctk.CTkFrame):
 
         self.usar_encerramento.pack(
             pady=(0, 10)
-        )
-
-        ctk.CTkLabel(
-            painel,
-            text="Mensagem final"
-        ).pack(
-            pady=(5, 5)
         )
 
         self.texto_encerramento = (
@@ -259,19 +277,16 @@ class VideoPage(ctk.CTkFrame):
 
         self.texto_encerramento.insert(
             0,
-            (
-                "Comente quantos pontos "
-                "você fez!"
-            )
+            "Comente quantos pontos você fez!"
         )
 
         self.texto_encerramento.pack(
             pady=(0, 20)
         )
 
-        # =====================================
+        # ==================================
         # MÚSICA
-        # =====================================
+        # ==================================
 
         ctk.CTkLabel(
             painel,
@@ -283,9 +298,7 @@ class VideoPage(ctk.CTkFrame):
 
         self.nome_musica = ctk.CTkLabel(
             painel,
-            text=(
-                "Nenhuma música selecionada"
-            ),
+            text="Nenhuma música selecionada",
             wraplength=500,
             text_color="gray70"
         )
@@ -325,33 +338,37 @@ class VideoPage(ctk.CTkFrame):
             padx=5
         )
 
-        self.texto_volume = ctk.CTkLabel(
-            painel,
-            text="Volume da música: 15%"
+        self.texto_volume_musica = (
+            ctk.CTkLabel(
+                painel,
+                text="Volume da música: 15%"
+            )
         )
 
-        self.texto_volume.pack(
+        self.texto_volume_musica.pack(
             pady=(5, 5)
         )
 
-        self.volume = ctk.CTkSlider(
+        self.volume_musica = ctk.CTkSlider(
             painel,
             from_=0,
             to=100,
             number_of_steps=100,
             width=350,
-            command=self.atualizar_volume
+            command=(
+                self.atualizar_volume_musica
+            )
         )
 
-        self.volume.set(15)
+        self.volume_musica.set(15)
 
-        self.volume.pack(
+        self.volume_musica.pack(
             pady=(0, 20)
         )
 
-        # =====================================
+        # ==================================
         # GERAR
-        # =====================================
+        # ==================================
 
         self.botao_gerar = ctk.CTkButton(
             painel,
@@ -371,10 +388,7 @@ class VideoPage(ctk.CTkFrame):
             mode="determinate"
         )
 
-        self.progresso.pack(
-            pady=10
-        )
-
+        self.progresso.pack(pady=10)
         self.progresso.set(0)
 
         self.status = ctk.CTkLabel(
@@ -399,10 +413,7 @@ class VideoPage(ctk.CTkFrame):
                     "Arquivos de áudio",
                     "*.mp3 *.wav *.m4a *.aac *.ogg"
                 ),
-                (
-                    "Todos os arquivos",
-                    "*.*"
-                )
+                ("Todos os arquivos", "*.*")
             ]
         )
 
@@ -419,17 +430,29 @@ class VideoPage(ctk.CTkFrame):
         self.caminho_musica = None
 
         self.nome_musica.configure(
+            text="Nenhuma música selecionada"
+        )
+
+    def atualizar_volume_narracao(
+        self,
+        valor
+    ):
+        percentual = int(round(valor))
+
+        self.texto_volume_narracao.configure(
             text=(
-                "Nenhuma música selecionada"
+                f"Volume da narração: "
+                f"{percentual}%"
             )
         )
 
-    def atualizar_volume(self, valor):
-        percentual = int(
-            round(valor)
-        )
+    def atualizar_volume_musica(
+        self,
+        valor
+    ):
+        percentual = int(round(valor))
 
-        self.texto_volume.configure(
+        self.texto_volume_musica.configure(
             text=(
                 f"Volume da música: "
                 f"{percentual}%"
@@ -437,9 +460,17 @@ class VideoPage(ctk.CTkFrame):
         )
 
     def carregar_projetos(self):
+        nome_atual = (
+            self.seletor_projeto.get()
+            if hasattr(
+                self,
+                "seletor_projeto"
+            )
+            else ""
+        )
+
         self.projetos = (
-            self.project_manager
-            .listar_projetos()
+            self.project_manager.listar_projetos()
         )
 
         nomes = [
@@ -456,9 +487,14 @@ class VideoPage(ctk.CTkFrame):
             values=nomes
         )
 
-        self.seletor_projeto.set(
-            nomes[0]
-        )
+        if nome_atual in nomes:
+            self.seletor_projeto.set(
+                nome_atual
+            )
+        else:
+            self.seletor_projeto.set(
+                nomes[0]
+            )
 
         self.status.configure(
             text=(
@@ -470,10 +506,7 @@ class VideoPage(ctk.CTkFrame):
     def iniciar_geracao(self):
         if not self.projetos:
             self.status.configure(
-                text=(
-                    "Nenhum projeto "
-                    "foi encontrado."
-                )
+                text="Nenhum projeto foi encontrado."
             )
             return
 
@@ -518,8 +551,7 @@ class VideoPage(ctk.CTkFrame):
             return
 
         perguntas = (
-            self.project_manager
-            .carregar_quiz(
+            self.project_manager.carregar_quiz(
                 pasta_projeto
             )
         )
@@ -527,11 +559,36 @@ class VideoPage(ctk.CTkFrame):
         if not perguntas:
             self.status.configure(
                 text=(
-                    "O projeto não possui "
-                    "perguntas."
+                    "O projeto não possui perguntas."
                 )
             )
             return
+
+        usar_narracao = bool(
+            self.usar_narracao.get()
+        )
+
+        if usar_narracao:
+            pasta_audios = (
+                Path(pasta_projeto)
+                / "audios"
+            )
+
+            primeiro_audio = (
+                pasta_audios
+                / "pergunta_001.mp3"
+            )
+
+            if not primeiro_audio.exists():
+                self.status.configure(
+                    text=(
+                        "As narrações não foram "
+                        "encontradas. Gere-as primeiro "
+                        "na página Narração ou desmarque "
+                        "a opção de usar narração."
+                    )
+                )
+                return
 
         if self.modo.get() == (
             "Vídeo completo"
@@ -540,32 +597,30 @@ class VideoPage(ctk.CTkFrame):
         else:
             limite_perguntas = 3
 
-        volume_musica = (
-            self.volume.get() / 100
-        )
-
         titulo_quiz = (
-            self.titulo_quiz
-            .get()
-            .strip()
+            self.titulo_quiz.get().strip()
+            or nome_selecionado
         )
-
-        if not titulo_quiz:
-            titulo_quiz = (
-                nome_selecionado
-            )
 
         texto_encerramento = (
             self.texto_encerramento
             .get()
             .strip()
-        )
-
-        if not texto_encerramento:
-            texto_encerramento = (
+            or (
                 "Comente quantos pontos "
                 "você fez!"
             )
+        )
+
+        volume_narracao = (
+            self.volume_narracao.get()
+            / 100
+        )
+
+        volume_musica = (
+            self.volume_musica.get()
+            / 100
+        )
 
         incluir_abertura = bool(
             self.usar_abertura.get()
@@ -583,10 +638,7 @@ class VideoPage(ctk.CTkFrame):
         self.progresso.set(0)
 
         self.status.configure(
-            text=(
-                "Preparando a geração "
-                "do vídeo..."
-            )
+            text="Preparando a geração do vídeo..."
         )
 
         thread = threading.Thread(
@@ -596,6 +648,8 @@ class VideoPage(ctk.CTkFrame):
                 perguntas,
                 tempo,
                 limite_perguntas,
+                usar_narracao,
+                volume_narracao,
                 self.caminho_musica,
                 volume_musica,
                 titulo_quiz,
@@ -614,6 +668,8 @@ class VideoPage(ctk.CTkFrame):
         perguntas,
         tempo,
         limite_perguntas,
+        usar_narracao,
+        volume_narracao,
         caminho_musica,
         volume_musica,
         titulo_quiz,
@@ -623,23 +679,16 @@ class VideoPage(ctk.CTkFrame):
     ):
         try:
             caminho_video = (
-                self.video_generator
-                .gerar_video(
+                self.video_generator.gerar_video(
                     pasta_projeto=pasta_projeto,
                     perguntas=perguntas,
                     tempo_resposta=tempo,
-                    limite_perguntas=(
-                        limite_perguntas
-                    ),
-                    caminho_musica=(
-                        caminho_musica
-                    ),
-                    volume_musica=(
-                        volume_musica
-                    ),
-                    titulo_quiz=(
-                        titulo_quiz
-                    ),
+                    limite_perguntas=limite_perguntas,
+                    caminho_musica=caminho_musica,
+                    volume_musica=volume_musica,
+                    volume_narracao=volume_narracao,
+                    usar_narracao=usar_narracao,
+                    titulo_quiz=titulo_quiz,
                     texto_encerramento=(
                         texto_encerramento
                     ),
@@ -688,14 +737,13 @@ class VideoPage(ctk.CTkFrame):
         total,
         mensagem
     ):
-        if total > 0:
-            percentual = atual / total
-        else:
-            percentual = 0
-
-        self.progresso.set(
-            percentual
+        percentual = (
+            atual / total
+            if total > 0
+            else 0
         )
+
+        self.progresso.set(percentual)
 
         self.status.configure(
             text=mensagem
