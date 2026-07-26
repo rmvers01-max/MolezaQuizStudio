@@ -61,8 +61,8 @@ class VideoPage(ctk.CTkFrame):
         ctk.CTkLabel(
             cabecalho,
             text=(
-                "Renderize seu quiz com "
-                "contagem regressiva e música."
+                "Crie vídeos com abertura, "
+                "quiz, música e encerramento."
             ),
             text_color="gray70"
         ).pack(
@@ -81,6 +81,10 @@ class VideoPage(ctk.CTkFrame):
             padx=30,
             pady=(0, 30)
         )
+
+        # =====================================
+        # PROJETO
+        # =====================================
 
         ctk.CTkLabel(
             painel,
@@ -112,6 +116,10 @@ class VideoPage(ctk.CTkFrame):
         ).pack(
             pady=(0, 18)
         )
+
+        # =====================================
+        # TEMPO E MODO
+        # =====================================
 
         ctk.CTkLabel(
             painel,
@@ -158,6 +166,113 @@ class VideoPage(ctk.CTkFrame):
             pady=(0, 20)
         )
 
+        # =====================================
+        # ABERTURA
+        # =====================================
+
+        ctk.CTkLabel(
+            painel,
+            text="Tela de abertura",
+            font=("Arial", 18, "bold")
+        ).pack(
+            pady=(10, 8)
+        )
+
+        self.usar_abertura = (
+            ctk.CTkCheckBox(
+                painel,
+                text="Incluir tela de abertura"
+            )
+        )
+
+        self.usar_abertura.select()
+
+        self.usar_abertura.pack(
+            pady=(0, 10)
+        )
+
+        ctk.CTkLabel(
+            painel,
+            text="Título da abertura"
+        ).pack(
+            pady=(5, 5)
+        )
+
+        self.titulo_quiz = ctk.CTkEntry(
+            painel,
+            width=420,
+            placeholder_text=(
+                "Ex.: Quiz de Animais"
+            )
+        )
+
+        self.titulo_quiz.insert(
+            0,
+            "Desafio Moleza Quiz"
+        )
+
+        self.titulo_quiz.pack(
+            pady=(0, 20)
+        )
+
+        # =====================================
+        # ENCERRAMENTO
+        # =====================================
+
+        ctk.CTkLabel(
+            painel,
+            text="Tela de encerramento",
+            font=("Arial", 18, "bold")
+        ).pack(
+            pady=(10, 8)
+        )
+
+        self.usar_encerramento = (
+            ctk.CTkCheckBox(
+                painel,
+                text=(
+                    "Incluir tela "
+                    "de encerramento"
+                )
+            )
+        )
+
+        self.usar_encerramento.select()
+
+        self.usar_encerramento.pack(
+            pady=(0, 10)
+        )
+
+        ctk.CTkLabel(
+            painel,
+            text="Mensagem final"
+        ).pack(
+            pady=(5, 5)
+        )
+
+        self.texto_encerramento = (
+            ctk.CTkEntry(
+                painel,
+                width=500
+            )
+        )
+
+        self.texto_encerramento.insert(
+            0,
+            (
+                "Comente quantos pontos "
+                "você fez!"
+            )
+        )
+
+        self.texto_encerramento.pack(
+            pady=(0, 20)
+        )
+
+        # =====================================
+        # MÚSICA
+        # =====================================
+
         ctk.CTkLabel(
             painel,
             text="Música de fundo",
@@ -168,7 +283,9 @@ class VideoPage(ctk.CTkFrame):
 
         self.nome_musica = ctk.CTkLabel(
             painel,
-            text="Nenhuma música selecionada",
+            text=(
+                "Nenhuma música selecionada"
+            ),
             wraplength=500,
             text_color="gray70"
         )
@@ -231,6 +348,10 @@ class VideoPage(ctk.CTkFrame):
         self.volume.pack(
             pady=(0, 20)
         )
+
+        # =====================================
+        # GERAR
+        # =====================================
 
         self.botao_gerar = ctk.CTkButton(
             painel,
@@ -298,7 +419,9 @@ class VideoPage(ctk.CTkFrame):
         self.caminho_musica = None
 
         self.nome_musica.configure(
-            text="Nenhuma música selecionada"
+            text=(
+                "Nenhuma música selecionada"
+            )
         )
 
     def atualizar_volume(self, valor):
@@ -421,6 +544,37 @@ class VideoPage(ctk.CTkFrame):
             self.volume.get() / 100
         )
 
+        titulo_quiz = (
+            self.titulo_quiz
+            .get()
+            .strip()
+        )
+
+        if not titulo_quiz:
+            titulo_quiz = (
+                nome_selecionado
+            )
+
+        texto_encerramento = (
+            self.texto_encerramento
+            .get()
+            .strip()
+        )
+
+        if not texto_encerramento:
+            texto_encerramento = (
+                "Comente quantos pontos "
+                "você fez!"
+            )
+
+        incluir_abertura = bool(
+            self.usar_abertura.get()
+        )
+
+        incluir_encerramento = bool(
+            self.usar_encerramento.get()
+        )
+
         self.botao_gerar.configure(
             state="disabled",
             text="GERANDO..."
@@ -443,7 +597,11 @@ class VideoPage(ctk.CTkFrame):
                 tempo,
                 limite_perguntas,
                 self.caminho_musica,
-                volume_musica
+                volume_musica,
+                titulo_quiz,
+                texto_encerramento,
+                incluir_abertura,
+                incluir_encerramento
             ),
             daemon=True
         )
@@ -457,7 +615,11 @@ class VideoPage(ctk.CTkFrame):
         tempo,
         limite_perguntas,
         caminho_musica,
-        volume_musica
+        volume_musica,
+        titulo_quiz,
+        texto_encerramento,
+        incluir_abertura,
+        incluir_encerramento
     ):
         try:
             caminho_video = (
@@ -466,9 +628,27 @@ class VideoPage(ctk.CTkFrame):
                     pasta_projeto=pasta_projeto,
                     perguntas=perguntas,
                     tempo_resposta=tempo,
-                    limite_perguntas=limite_perguntas,
-                    caminho_musica=caminho_musica,
-                    volume_musica=volume_musica,
+                    limite_perguntas=(
+                        limite_perguntas
+                    ),
+                    caminho_musica=(
+                        caminho_musica
+                    ),
+                    volume_musica=(
+                        volume_musica
+                    ),
+                    titulo_quiz=(
+                        titulo_quiz
+                    ),
+                    texto_encerramento=(
+                        texto_encerramento
+                    ),
+                    incluir_abertura=(
+                        incluir_abertura
+                    ),
+                    incluir_encerramento=(
+                        incluir_encerramento
+                    ),
                     callback_progresso=(
                         self.receber_progresso
                     )
