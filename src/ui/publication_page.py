@@ -1,10 +1,13 @@
 import json
+import os
 from pathlib import Path
 from tkinter import messagebox
 
 import customtkinter as ctk
+from PIL import Image
 
 from core.project_manager import ProjectManager
+from core.thumbnail_generator import ThumbnailGenerator
 
 
 class PublicationPage(ctk.CTkFrame):
@@ -13,19 +16,26 @@ class PublicationPage(ctk.CTkFrame):
         super().__init__(master)
 
         self.project_manager = ProjectManager()
+        self.thumbnail_generator = ThumbnailGenerator()
+
         self.projetos = {}
         self.pasta_projeto_atual = None
+        self.caminho_thumbnail_atual = None
+        self.imagem_thumbnail_ctk = None
 
         self.criar_interface()
         self.carregar_projetos()
 
     def criar_interface(self):
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(
+            0,
+            weight=1
+        )
 
-        # =====================================
-        # CABEÇALHO
-        # =====================================
+        self.grid_rowconfigure(
+            1,
+            weight=1
+        )
 
         cabecalho = ctk.CTkFrame(
             self,
@@ -67,7 +77,7 @@ class PublicationPage(ctk.CTkFrame):
         ctk.CTkLabel(
             textos_cabecalho,
             text=(
-                "Prepare o título, a descrição e as tags "
+                "Prepare os dados e a thumbnail "
                 "do vídeo para publicação no YouTube."
             ),
             text_color="gray70"
@@ -87,10 +97,6 @@ class PublicationPage(ctk.CTkFrame):
             sticky="e"
         )
 
-        # =====================================
-        # CONTEÚDO
-        # =====================================
-
         conteudo = ctk.CTkScrollableFrame(
             self
         )
@@ -108,15 +114,57 @@ class PublicationPage(ctk.CTkFrame):
             weight=1
         )
 
-        # =====================================
-        # SELEÇÃO DO PROJETO
-        # =====================================
-
-        painel_projeto = ctk.CTkFrame(
+        self._criar_painel_projeto(
             conteudo
         )
 
-        painel_projeto.grid(
+        self._criar_painel_informacoes(
+            conteudo
+        )
+
+        self._criar_painel_titulo(
+            conteudo
+        )
+
+        self._criar_painel_descricao(
+            conteudo
+        )
+
+        self._criar_painel_tags(
+            conteudo
+        )
+
+        self._criar_painel_thumbnail(
+            conteudo
+        )
+
+        self._criar_painel_botoes(
+            conteudo
+        )
+
+        self.status = ctk.CTkLabel(
+            conteudo,
+            text="Selecione um projeto.",
+            wraplength=900
+        )
+
+        self.status.grid(
+            row=7,
+            column=0,
+            sticky="ew",
+            padx=20,
+            pady=(5, 25)
+        )
+
+    def _criar_painel_projeto(
+        self,
+        conteudo
+    ):
+        painel = ctk.CTkFrame(
+            conteudo
+        )
+
+        painel.grid(
             row=0,
             column=0,
             sticky="ew",
@@ -124,13 +172,13 @@ class PublicationPage(ctk.CTkFrame):
             pady=(10, 8)
         )
 
-        painel_projeto.grid_columnconfigure(
+        painel.grid_columnconfigure(
             1,
             weight=1
         )
 
         ctk.CTkLabel(
-            painel_projeto,
+            painel,
             text="Projeto",
             font=("Arial", 17, "bold")
         ).grid(
@@ -142,7 +190,7 @@ class PublicationPage(ctk.CTkFrame):
         )
 
         self.seletor_projeto = ctk.CTkOptionMenu(
-            painel_projeto,
+            painel,
             values=["Nenhum projeto encontrado"],
             command=self.selecionar_projeto
         )
@@ -156,7 +204,7 @@ class PublicationPage(ctk.CTkFrame):
         )
 
         ctk.CTkButton(
-            painel_projeto,
+            painel,
             text="Carregar",
             width=110,
             command=self.carregar_projeto_selecionado
@@ -167,15 +215,15 @@ class PublicationPage(ctk.CTkFrame):
             pady=20
         )
 
-        # =====================================
-        # INFORMAÇÕES DO PROJETO
-        # =====================================
-
-        painel_informacoes = ctk.CTkFrame(
+    def _criar_painel_informacoes(
+        self,
+        conteudo
+    ):
+        painel = ctk.CTkFrame(
             conteudo
         )
 
-        painel_informacoes.grid(
+        painel.grid(
             row=1,
             column=0,
             sticky="ew",
@@ -183,13 +231,13 @@ class PublicationPage(ctk.CTkFrame):
             pady=8
         )
 
-        painel_informacoes.grid_columnconfigure(
+        painel.grid_columnconfigure(
             0,
             weight=1
         )
 
         self.rotulo_projeto = ctk.CTkLabel(
-            painel_informacoes,
+            painel,
             text="Nenhum projeto selecionado.",
             font=("Arial", 16, "bold")
         )
@@ -203,7 +251,7 @@ class PublicationPage(ctk.CTkFrame):
         )
 
         self.rotulo_detalhes = ctk.CTkLabel(
-            painel_informacoes,
+            painel,
             text=(
                 "Selecione um projeto para gerar "
                 "os dados de publicação."
@@ -220,15 +268,15 @@ class PublicationPage(ctk.CTkFrame):
             pady=(0, 18)
         )
 
-        # =====================================
-        # TÍTULO
-        # =====================================
-
-        painel_titulo = ctk.CTkFrame(
+    def _criar_painel_titulo(
+        self,
+        conteudo
+    ):
+        painel = ctk.CTkFrame(
             conteudo
         )
 
-        painel_titulo.grid(
+        painel.grid(
             row=2,
             column=0,
             sticky="ew",
@@ -236,17 +284,17 @@ class PublicationPage(ctk.CTkFrame):
             pady=8
         )
 
-        painel_titulo.grid_columnconfigure(
+        painel.grid_columnconfigure(
             0,
             weight=1
         )
 
-        linha_titulo = ctk.CTkFrame(
-            painel_titulo,
+        linha = ctk.CTkFrame(
+            painel,
             fg_color="transparent"
         )
 
-        linha_titulo.grid(
+        linha.grid(
             row=0,
             column=0,
             sticky="ew",
@@ -254,13 +302,13 @@ class PublicationPage(ctk.CTkFrame):
             pady=(18, 8)
         )
 
-        linha_titulo.grid_columnconfigure(
+        linha.grid_columnconfigure(
             0,
             weight=1
         )
 
         ctk.CTkLabel(
-            linha_titulo,
+            linha,
             text="Título do vídeo",
             font=("Arial", 17, "bold")
         ).grid(
@@ -270,7 +318,7 @@ class PublicationPage(ctk.CTkFrame):
         )
 
         self.contador_titulo = ctk.CTkLabel(
-            linha_titulo,
+            linha,
             text="0 caracteres",
             text_color="gray70"
         )
@@ -282,7 +330,7 @@ class PublicationPage(ctk.CTkFrame):
         )
 
         self.campo_titulo = ctk.CTkEntry(
-            painel_titulo,
+            painel,
             placeholder_text="O título aparecerá aqui."
         )
 
@@ -300,7 +348,7 @@ class PublicationPage(ctk.CTkFrame):
         )
 
         ctk.CTkButton(
-            painel_titulo,
+            painel,
             text="Copiar título",
             width=130,
             fg_color="gray35",
@@ -317,15 +365,15 @@ class PublicationPage(ctk.CTkFrame):
             pady=(0, 18)
         )
 
-        # =====================================
-        # DESCRIÇÃO
-        # =====================================
-
-        painel_descricao = ctk.CTkFrame(
+    def _criar_painel_descricao(
+        self,
+        conteudo
+    ):
+        painel = ctk.CTkFrame(
             conteudo
         )
 
-        painel_descricao.grid(
+        painel.grid(
             row=3,
             column=0,
             sticky="ew",
@@ -333,13 +381,13 @@ class PublicationPage(ctk.CTkFrame):
             pady=8
         )
 
-        painel_descricao.grid_columnconfigure(
+        painel.grid_columnconfigure(
             0,
             weight=1
         )
 
         ctk.CTkLabel(
-            painel_descricao,
+            painel,
             text="Descrição",
             font=("Arial", 17, "bold")
         ).grid(
@@ -351,7 +399,7 @@ class PublicationPage(ctk.CTkFrame):
         )
 
         self.campo_descricao = ctk.CTkTextbox(
-            painel_descricao,
+            painel,
             height=230,
             wrap="word"
         )
@@ -365,7 +413,7 @@ class PublicationPage(ctk.CTkFrame):
         )
 
         ctk.CTkButton(
-            painel_descricao,
+            painel,
             text="Copiar descrição",
             width=140,
             fg_color="gray35",
@@ -385,15 +433,15 @@ class PublicationPage(ctk.CTkFrame):
             pady=(0, 18)
         )
 
-        # =====================================
-        # TAGS
-        # =====================================
-
-        painel_tags = ctk.CTkFrame(
+    def _criar_painel_tags(
+        self,
+        conteudo
+    ):
+        painel = ctk.CTkFrame(
             conteudo
         )
 
-        painel_tags.grid(
+        painel.grid(
             row=4,
             column=0,
             sticky="ew",
@@ -401,13 +449,13 @@ class PublicationPage(ctk.CTkFrame):
             pady=8
         )
 
-        painel_tags.grid_columnconfigure(
+        painel.grid_columnconfigure(
             0,
             weight=1
         )
 
         ctk.CTkLabel(
-            painel_tags,
+            painel,
             text="Tags",
             font=("Arial", 17, "bold")
         ).grid(
@@ -419,7 +467,7 @@ class PublicationPage(ctk.CTkFrame):
         )
 
         ctk.CTkLabel(
-            painel_tags,
+            painel,
             text="Separe as tags por vírgulas.",
             text_color="gray70"
         ).grid(
@@ -431,7 +479,7 @@ class PublicationPage(ctk.CTkFrame):
         )
 
         self.campo_tags = ctk.CTkTextbox(
-            painel_tags,
+            painel,
             height=110,
             wrap="word"
         )
@@ -445,7 +493,7 @@ class PublicationPage(ctk.CTkFrame):
         )
 
         ctk.CTkButton(
-            painel_tags,
+            painel,
             text="Copiar tags",
             width=130,
             fg_color="gray35",
@@ -465,17 +513,137 @@ class PublicationPage(ctk.CTkFrame):
             pady=(0, 18)
         )
 
-        # =====================================
-        # BOTÕES PRINCIPAIS
-        # =====================================
+    def _criar_painel_thumbnail(
+        self,
+        conteudo
+    ):
+        painel = ctk.CTkFrame(
+            conteudo
+        )
 
-        painel_botoes = ctk.CTkFrame(
+        painel.grid(
+            row=5,
+            column=0,
+            sticky="ew",
+            padx=10,
+            pady=8
+        )
+
+        painel.grid_columnconfigure(
+            0,
+            weight=1
+        )
+
+        ctk.CTkLabel(
+            painel,
+            text="Thumbnail do vídeo",
+            font=("Arial", 17, "bold")
+        ).grid(
+            row=0,
+            column=0,
+            sticky="w",
+            padx=20,
+            pady=(18, 5)
+        )
+
+        ctk.CTkLabel(
+            painel,
+            text=(
+                "A imagem será criada em 1280 × 720 "
+                "e salva como thumbnail.png."
+            ),
+            text_color="gray70"
+        ).grid(
+            row=1,
+            column=0,
+            sticky="w",
+            padx=20,
+            pady=(0, 10)
+        )
+
+        self.campo_chamada_thumbnail = ctk.CTkEntry(
+            painel,
+            placeholder_text="Texto de chamada da thumbnail"
+        )
+
+        self.campo_chamada_thumbnail.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+            padx=20,
+            pady=(0, 12)
+        )
+
+        self.campo_chamada_thumbnail.insert(
+            0,
+            "VOCÊ CONSEGUE ACERTAR?"
+        )
+
+        self.preview_thumbnail = ctk.CTkLabel(
+            painel,
+            text=(
+                "A thumbnail aparecerá aqui "
+                "depois de ser gerada."
+            ),
+            width=640,
+            height=360,
+            corner_radius=12,
+            fg_color="#101820"
+        )
+
+        self.preview_thumbnail.grid(
+            row=3,
+            column=0,
+            padx=20,
+            pady=(0, 15)
+        )
+
+        linha_botoes = ctk.CTkFrame(
+            painel,
+            fg_color="transparent"
+        )
+
+        linha_botoes.grid(
+            row=4,
+            column=0,
+            sticky="e",
+            padx=20,
+            pady=(0, 18)
+        )
+
+        ctk.CTkButton(
+            linha_botoes,
+            text="Gerar thumbnail",
+            width=160,
+            command=self.gerar_thumbnail
+        ).pack(
+            side="left",
+            padx=5
+        )
+
+        ctk.CTkButton(
+            linha_botoes,
+            text="Abrir thumbnail",
+            width=150,
+            fg_color="gray35",
+            hover_color="gray25",
+            command=self.abrir_thumbnail
+        ).pack(
+            side="left",
+            padx=5
+        )
+
+    def _criar_painel_botoes(
+        self,
+        conteudo
+    ):
+        painel = ctk.CTkFrame(
             conteudo,
             fg_color="transparent"
         )
 
-        painel_botoes.grid(
-            row=5,
+        painel.grid(
+            row=6,
             column=0,
             sticky="ew",
             padx=10,
@@ -483,7 +651,7 @@ class PublicationPage(ctk.CTkFrame):
         )
 
         ctk.CTkButton(
-            painel_botoes,
+            painel,
             text="GERAR DADOS",
             width=180,
             height=44,
@@ -494,7 +662,18 @@ class PublicationPage(ctk.CTkFrame):
         )
 
         ctk.CTkButton(
-            painel_botoes,
+            painel,
+            text="GERAR TUDO",
+            width=180,
+            height=44,
+            command=self.gerar_tudo
+        ).pack(
+            side="left",
+            padx=8
+        )
+
+        ctk.CTkButton(
+            painel,
             text="SALVAR",
             width=150,
             height=44,
@@ -505,7 +684,7 @@ class PublicationPage(ctk.CTkFrame):
         )
 
         ctk.CTkButton(
-            painel_botoes,
+            painel,
             text="Abrir pasta",
             width=140,
             height=44,
@@ -517,28 +696,19 @@ class PublicationPage(ctk.CTkFrame):
             padx=8
         )
 
-        self.status = ctk.CTkLabel(
-            conteudo,
-            text="Selecione um projeto.",
-            wraplength=900
-        )
-
-        self.status.grid(
-            row=6,
-            column=0,
-            sticky="ew",
-            padx=20,
-            pady=(5, 25)
-        )
-
     def carregar_projetos(self):
         self.projetos.clear()
 
         try:
-            pastas = self.project_manager.listar_projetos()
+            pastas = (
+                self.project_manager
+                .listar_projetos()
+            )
         except OSError as erro:
             self.seletor_projeto.configure(
-                values=["Erro ao carregar projetos"]
+                values=[
+                    "Erro ao carregar projetos"
+                ]
             )
 
             self.seletor_projeto.set(
@@ -546,13 +716,18 @@ class PublicationPage(ctk.CTkFrame):
             )
 
             self.status.configure(
-                text=f"Erro ao carregar projetos: {erro}"
+                text=(
+                    "Erro ao carregar projetos: "
+                    f"{erro}"
+                )
             )
 
             return
 
         for pasta in pastas:
-            self.projetos[pasta.name] = pasta
+            self.projetos[
+                pasta.name
+            ] = pasta
 
         nomes = list(
             self.projetos.keys()
@@ -560,7 +735,9 @@ class PublicationPage(ctk.CTkFrame):
 
         if not nomes:
             self.seletor_projeto.configure(
-                values=["Nenhum projeto encontrado"]
+                values=[
+                    "Nenhum projeto encontrado"
+                ]
             )
 
             self.seletor_projeto.set(
@@ -570,7 +747,9 @@ class PublicationPage(ctk.CTkFrame):
             self.pasta_projeto_atual = None
 
             self.status.configure(
-                text="Nenhum projeto foi encontrado."
+                text=(
+                    "Nenhum projeto foi encontrado."
+                )
             )
 
             return
@@ -579,7 +758,9 @@ class PublicationPage(ctk.CTkFrame):
             values=nomes
         )
 
-        nome_atual = self.seletor_projeto.get()
+        nome_atual = (
+            self.seletor_projeto.get()
+        )
 
         if nome_atual not in self.projetos:
             self.seletor_projeto.set(
@@ -588,10 +769,15 @@ class PublicationPage(ctk.CTkFrame):
 
         self.carregar_projeto_selecionado()
 
-    def selecionar_projeto(self, nome_projeto):
+    def selecionar_projeto(
+        self,
+        nome_projeto
+    ):
         if nome_projeto in self.projetos:
             self.carregar_projeto(
-                self.projetos[nome_projeto]
+                self.projetos[
+                    nome_projeto
+                ]
             )
 
     def carregar_projeto_selecionado(self):
@@ -599,13 +785,17 @@ class PublicationPage(ctk.CTkFrame):
             self.seletor_projeto.get()
         )
 
-        pasta_projeto = self.projetos.get(
-            nome_projeto
+        pasta_projeto = (
+            self.projetos.get(
+                nome_projeto
+            )
         )
 
         if pasta_projeto is None:
             self.status.configure(
-                text="Selecione um projeto válido."
+                text=(
+                    "Selecione um projeto válido."
+                )
             )
 
             return
@@ -614,23 +804,20 @@ class PublicationPage(ctk.CTkFrame):
             pasta_projeto
         )
 
-    def carregar_projeto(self, pasta_projeto):
+    def carregar_projeto(
+        self,
+        pasta_projeto
+    ):
         self.pasta_projeto_atual = Path(
             pasta_projeto
         )
 
         configuracao = (
-            self.project_manager
-            .carregar_configuracao_projeto(
-                self.pasta_projeto_atual
-            )
+            self._carregar_configuracao()
         )
 
         perguntas = (
-            self.project_manager
-            .carregar_quiz(
-                self.pasta_projeto_atual
-            )
+            self._carregar_perguntas()
         )
 
         tema = configuracao.get(
@@ -654,7 +841,9 @@ class PublicationPage(ctk.CTkFrame):
             )
         )
 
-        publicacao = self.carregar_publicacao_salva()
+        publicacao = (
+            self.carregar_publicacao_salva()
+        )
 
         if publicacao:
             self.preencher_campos(
@@ -672,54 +861,94 @@ class PublicationPage(ctk.CTkFrame):
                 )
             )
 
-            self.status.configure(
-                text=(
-                    "Dados de publicação carregados "
-                    "do arquivo publicacao.json."
-                )
+            chamada = publicacao.get(
+                "chamada_thumbnail",
+                "VOCÊ CONSEGUE ACERTAR?"
             )
 
+            self.campo_chamada_thumbnail.delete(
+                0,
+                "end"
+            )
+
+            self.campo_chamada_thumbnail.insert(
+                0,
+                chamada
+            )
+
+            self.status.configure(
+                text=(
+                    "Dados de publicação carregados."
+                )
+            )
         else:
             self.limpar_campos()
 
             self.status.configure(
                 text=(
                     "Projeto carregado. Clique em "
-                    "Gerar dados para criar o conteúdo."
+                    "Gerar dados ou Gerar tudo."
+                )
+            )
+
+        caminho_thumbnail = (
+            self.pasta_projeto_atual
+            / "thumbnail.png"
+        )
+
+        if caminho_thumbnail.exists():
+            self.exibir_thumbnail(
+                caminho_thumbnail
+            )
+        else:
+            self.caminho_thumbnail_atual = None
+            self.imagem_thumbnail_ctk = None
+
+            self.preview_thumbnail.configure(
+                image=None,
+                text=(
+                    "A thumbnail aparecerá aqui "
+                    "depois de ser gerada."
                 )
             )
 
     def gerar_dados_publicacao(self):
-        if self.pasta_projeto_atual is None:
-            self.status.configure(
-                text="Selecione um projeto primeiro."
-            )
-
+        if not self._projeto_selecionado():
             return
 
         configuracao = (
-            self.project_manager
-            .carregar_configuracao_projeto(
-                self.pasta_projeto_atual
-            )
+            self._carregar_configuracao()
         )
 
         perguntas = (
-            self.project_manager
-            .carregar_quiz(
-                self.pasta_projeto_atual
+            self._carregar_perguntas()
+        )
+
+        tema = str(
+            configuracao.get(
+                "tema",
+                self.pasta_projeto_atual.name
+            )
+        ).strip()
+
+        quantidade = (
+            configuracao.get(
+                "quantidade_perguntas",
+                len(perguntas)
             )
         )
 
-        tema = configuracao.get(
-            "tema",
-            self.pasta_projeto_atual.name
-        ).strip()
-
-        quantidade = configuracao.get(
-            "quantidade_perguntas",
-            len(perguntas)
-        )
+        try:
+            quantidade = int(
+                quantidade
+            )
+        except (
+            TypeError,
+            ValueError
+        ):
+            quantidade = len(
+                perguntas
+            )
 
         titulo = self.gerar_titulo(
             tema=tema,
@@ -748,6 +977,216 @@ class PublicationPage(ctk.CTkFrame):
             )
         )
 
+    def gerar_thumbnail(self):
+        if not self._projeto_selecionado():
+            return
+
+        configuracao = (
+            self._carregar_configuracao()
+        )
+
+        perguntas = (
+            self._carregar_perguntas()
+        )
+
+        tema = str(
+            configuracao.get(
+                "tema",
+                self.pasta_projeto_atual.name
+            )
+        ).strip()
+
+        quantidade = (
+            configuracao.get(
+                "quantidade_perguntas",
+                len(perguntas)
+            )
+        )
+
+        try:
+            quantidade = int(
+                quantidade
+            )
+        except (
+            TypeError,
+            ValueError
+        ):
+            quantidade = len(
+                perguntas
+            )
+
+        chamada = (
+            self.campo_chamada_thumbnail
+            .get()
+            .strip()
+        )
+
+        if not chamada:
+            chamada = (
+                "VOCÊ CONSEGUE ACERTAR?"
+            )
+
+            self.campo_chamada_thumbnail.insert(
+                0,
+                chamada
+            )
+
+        self.status.configure(
+            text="Gerando thumbnail..."
+        )
+
+        self.update_idletasks()
+
+        try:
+            caminho = (
+                self.thumbnail_generator
+                .gerar(
+                    pasta_projeto=(
+                        self.pasta_projeto_atual
+                    ),
+                    tema=tema,
+                    quantidade_perguntas=(
+                        quantidade
+                    ),
+                    texto_chamada=chamada
+                )
+            )
+
+            self.exibir_thumbnail(
+                caminho
+            )
+
+            self.status.configure(
+                text=(
+                    "Thumbnail gerada com sucesso: "
+                    f"{caminho}"
+                )
+            )
+
+        except Exception as erro:
+            messagebox.showerror(
+                title="Erro ao gerar thumbnail",
+                message=(
+                    "Não foi possível gerar "
+                    "a thumbnail.\n\n"
+                    f"{erro}"
+                ),
+                parent=self.winfo_toplevel()
+            )
+
+            self.status.configure(
+                text=(
+                    "Erro ao gerar thumbnail: "
+                    f"{erro}"
+                )
+            )
+
+    def gerar_tudo(self):
+        if not self._projeto_selecionado():
+            return
+
+        self.gerar_dados_publicacao()
+        self.gerar_thumbnail()
+        self.salvar_publicacao()
+
+    def exibir_thumbnail(
+        self,
+        caminho_thumbnail
+    ):
+        caminho_thumbnail = Path(
+            caminho_thumbnail
+        )
+
+        if not caminho_thumbnail.exists():
+            return
+
+        try:
+            with Image.open(
+                caminho_thumbnail
+            ) as imagem_original:
+                imagem = (
+                    imagem_original
+                    .convert("RGB")
+                    .copy()
+                )
+
+            self.imagem_thumbnail_ctk = (
+                ctk.CTkImage(
+                    light_image=imagem,
+                    dark_image=imagem,
+                    size=(
+                        640,
+                        360
+                    )
+                )
+            )
+
+            self.preview_thumbnail.configure(
+                image=self.imagem_thumbnail_ctk,
+                text=""
+            )
+
+            self.caminho_thumbnail_atual = (
+                caminho_thumbnail
+            )
+
+        except (
+            OSError,
+            ValueError
+        ) as erro:
+            self.preview_thumbnail.configure(
+                image=None,
+                text=(
+                    "Não foi possível visualizar "
+                    f"a thumbnail.\n{erro}"
+                )
+            )
+
+    def abrir_thumbnail(self):
+        caminho = (
+            self.caminho_thumbnail_atual
+        )
+
+        if caminho is None:
+            self.status.configure(
+                text=(
+                    "Gere uma thumbnail primeiro."
+                )
+            )
+
+            return
+
+        caminho = Path(
+            caminho
+        )
+
+        if not caminho.exists():
+            self.status.configure(
+                text=(
+                    "O arquivo da thumbnail "
+                    "não foi encontrado."
+                )
+            )
+
+            return
+
+        try:
+            os.startfile(
+                str(
+                    caminho.resolve()
+                )
+            )
+        except OSError as erro:
+            messagebox.showerror(
+                title="Erro",
+                message=(
+                    "Não foi possível abrir "
+                    "a thumbnail.\n\n"
+                    f"{erro}"
+                ),
+                parent=self.winfo_toplevel()
+            )
+
     def gerar_titulo(
         self,
         tema,
@@ -767,15 +1206,21 @@ class PublicationPage(ctk.CTkFrame):
             f"Você sabe tudo sobre {tema}?\n\n"
             f"Neste vídeo do Moleza Quiz, você terá "
             f"{quantidade} perguntas para testar seus "
-            f"conhecimentos e se divertir com toda a família.\n\n"
-            "Responda antes que o tempo acabe e conte nos "
-            "comentários quantas perguntas você acertou!\n\n"
-            "Inscreva-se no canal e ative as notificações "
-            "para não perder os próximos desafios.\n\n"
+            "conhecimentos e se divertir com toda "
+            "a família.\n\n"
+            "Responda antes que o tempo acabe e conte "
+            "nos comentários quantas perguntas você "
+            "acertou!\n\n"
+            "Inscreva-se no canal e ative as "
+            "notificações para não perder os "
+            "próximos desafios.\n\n"
             "#MolezaQuiz #Quiz #Desafio"
         )
 
-    def gerar_tags(self, tema):
+    def gerar_tags(
+        self,
+        tema
+    ):
         tema_limpo = tema.strip()
 
         tags = [
@@ -876,6 +1321,16 @@ class PublicationPage(ctk.CTkFrame):
             "end"
         )
 
+        self.campo_chamada_thumbnail.delete(
+            0,
+            "end"
+        )
+
+        self.campo_chamada_thumbnail.insert(
+            0,
+            "VOCÊ CONSEGUE ACERTAR?"
+        )
+
         self.atualizar_contador_titulo()
 
     def atualizar_contador_titulo(
@@ -891,42 +1346,63 @@ class PublicationPage(ctk.CTkFrame):
         )
 
     def salvar_publicacao(self):
-        if self.pasta_projeto_atual is None:
-            self.status.configure(
-                text="Selecione um projeto primeiro."
-            )
-
+        if not self._projeto_selecionado():
             return
 
-        titulo = self.campo_titulo.get().strip()
+        titulo = (
+            self.campo_titulo
+            .get()
+            .strip()
+        )
 
-        descricao = self.campo_descricao.get(
-            "0.0",
-            "end"
-        ).strip()
+        descricao = (
+            self.campo_descricao
+            .get(
+                "0.0",
+                "end"
+            )
+            .strip()
+        )
 
-        tags = self.campo_tags.get(
-            "0.0",
-            "end"
-        ).strip()
+        tags = (
+            self.campo_tags
+            .get(
+                "0.0",
+                "end"
+            )
+            .strip()
+        )
+
+        chamada_thumbnail = (
+            self.campo_chamada_thumbnail
+            .get()
+            .strip()
+        )
 
         if not titulo:
             self.status.configure(
-                text="O título não pode ficar vazio."
+                text=(
+                    "O título não pode ficar vazio."
+                )
             )
 
             return
 
         if not descricao:
             self.status.configure(
-                text="A descrição não pode ficar vazia."
+                text=(
+                    "A descrição não pode "
+                    "ficar vazia."
+                )
             )
 
             return
 
         if not tags:
             self.status.configure(
-                text="As tags não podem ficar vazias."
+                text=(
+                    "As tags não podem ficar vazias."
+                )
             )
 
             return
@@ -934,7 +1410,17 @@ class PublicationPage(ctk.CTkFrame):
         dados = {
             "titulo": titulo,
             "descricao": descricao,
-            "tags": tags
+            "tags": tags,
+            "chamada_thumbnail": (
+                chamada_thumbnail
+            ),
+            "thumbnail": (
+                str(
+                    self.caminho_thumbnail_atual
+                )
+                if self.caminho_thumbnail_atual
+                else ""
+            )
         }
 
         arquivo_publicacao = (
@@ -965,8 +1451,8 @@ class PublicationPage(ctk.CTkFrame):
         except OSError as erro:
             self.status.configure(
                 text=(
-                    "Não foi possível salvar os dados: "
-                    f"{erro}"
+                    "Não foi possível salvar "
+                    f"os dados: {erro}"
                 )
             )
 
@@ -1022,6 +1508,7 @@ class PublicationPage(ctk.CTkFrame):
 
         try:
             self.clipboard_clear()
+
             self.clipboard_append(
                 texto
             )
@@ -1038,32 +1525,30 @@ class PublicationPage(ctk.CTkFrame):
         except Exception as erro:
             self.status.configure(
                 text=(
-                    "Não foi possível copiar o conteúdo: "
-                    f"{erro}"
+                    "Não foi possível copiar "
+                    f"o conteúdo: {erro}"
                 )
             )
 
     def abrir_pasta_projeto(self):
-        if self.pasta_projeto_atual is None:
-            self.status.configure(
-                text="Selecione um projeto primeiro."
-            )
-
+        if not self._projeto_selecionado():
             return
 
         if not self.pasta_projeto_atual.exists():
             self.status.configure(
-                text="A pasta do projeto não foi encontrada."
+                text=(
+                    "A pasta do projeto "
+                    "não foi encontrada."
+                )
             )
 
             return
 
         try:
-            import os
-
             os.startfile(
                 str(
-                    self.pasta_projeto_atual.resolve()
+                    self.pasta_projeto_atual
+                    .resolve()
                 )
             )
 
@@ -1078,8 +1563,128 @@ class PublicationPage(ctk.CTkFrame):
             messagebox.showerror(
                 title="Erro",
                 message=(
-                    "Não foi possível abrir a pasta.\n\n"
+                    "Não foi possível abrir "
+                    "a pasta.\n\n"
                     f"{erro}"
                 ),
                 parent=self.winfo_toplevel()
             )
+
+    def _projeto_selecionado(self):
+        if self.pasta_projeto_atual is None:
+            self.status.configure(
+                text=(
+                    "Selecione um projeto primeiro."
+                )
+            )
+
+            return False
+
+        return True
+
+    def _carregar_configuracao(self):
+        try:
+            dados = (
+                self.project_manager
+                .carregar_configuracao_projeto(
+                    self.pasta_projeto_atual
+                )
+            )
+
+            if isinstance(
+                dados,
+                dict
+            ):
+                return dados
+
+        except Exception:
+            pass
+
+        caminho = (
+            self.pasta_projeto_atual
+            / "config.json"
+        )
+
+        return self._ler_json(
+            caminho,
+            padrao={}
+        )
+
+    def _carregar_perguntas(self):
+        try:
+            dados = (
+                self.project_manager
+                .carregar_quiz(
+                    self.pasta_projeto_atual
+                )
+            )
+
+            if isinstance(
+                dados,
+                list
+            ):
+                return dados
+
+        except Exception:
+            pass
+
+        caminho = (
+            self.pasta_projeto_atual
+            / "quiz.json"
+        )
+
+        dados = self._ler_json(
+            caminho,
+            padrao=[]
+        )
+
+        if isinstance(
+            dados,
+            list
+        ):
+            return dados
+
+        if isinstance(
+            dados,
+            dict
+        ):
+            perguntas = dados.get(
+                "perguntas",
+                []
+            )
+
+            if isinstance(
+                perguntas,
+                list
+            ):
+                return perguntas
+
+        return []
+
+    def _ler_json(
+        self,
+        caminho,
+        padrao
+    ):
+        caminho = Path(
+            caminho
+        )
+
+        if not caminho.exists():
+            return padrao
+
+        try:
+            with open(
+                caminho,
+                "r",
+                encoding="utf-8"
+            ) as arquivo:
+                return json.load(
+                    arquivo
+                )
+
+        except (
+            OSError,
+            json.JSONDecodeError
+        ):
+            return padrao
