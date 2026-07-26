@@ -56,8 +56,8 @@ class VideoPage(ctk.CTkFrame):
         ctk.CTkLabel(
             cabecalho,
             text=(
-                "Gere um vídeo com pergunta, "
-                "contagem regressiva e resposta."
+                "Crie um teste rápido ou renderize "
+                "todas as perguntas do projeto."
             ),
             text_color="gray70"
         ).pack(
@@ -84,7 +84,7 @@ class VideoPage(ctk.CTkFrame):
             text="Selecione o projeto",
             font=("Arial", 20, "bold")
         ).pack(
-            pady=(35, 10)
+            pady=(30, 10)
         )
 
         self.seletor_projeto = ctk.CTkOptionMenu(
@@ -105,17 +105,14 @@ class VideoPage(ctk.CTkFrame):
             width=160,
             command=self.carregar_projetos
         ).pack(
-            pady=(0, 20)
+            pady=(0, 18)
         )
 
         ctk.CTkLabel(
             painel,
-            text=(
-                "Tempo para responder "
-                "(contagem regressiva)"
-            )
+            text="Tempo para responder"
         ).pack(
-            pady=(10, 5)
+            pady=(5, 5)
         )
 
         self.tempo = ctk.CTkEntry(
@@ -129,43 +126,55 @@ class VideoPage(ctk.CTkFrame):
         )
 
         self.tempo.pack(
-            pady=5
+            pady=(0, 15)
         )
 
         ctk.CTkLabel(
             painel,
-            text=(
-                "Nesta versão de teste serão usadas "
-                "as três primeiras perguntas."
-            ),
-            text_color="gray70"
+            text="Modo de geração"
         ).pack(
-            pady=(10, 5)
+            pady=(5, 5)
+        )
+
+        self.modo = ctk.CTkOptionMenu(
+            painel,
+            values=[
+                "Teste — 3 perguntas",
+                "Vídeo completo"
+            ],
+            width=250
+        )
+
+        self.modo.set(
+            "Teste — 3 perguntas"
+        )
+
+        self.modo.pack(
+            pady=(0, 15)
         )
 
         self.botao_gerar = ctk.CTkButton(
             painel,
-            text="GERAR VÍDEO DE TESTE",
+            text="GERAR VÍDEO",
             width=250,
             height=45,
             command=self.iniciar_geracao
         )
 
         self.botao_gerar.pack(
-            pady=(25, 15)
+            pady=(20, 15)
         )
 
         self.progresso = ctk.CTkProgressBar(
             painel,
-            width=400,
-            mode="indeterminate"
+            width=450,
+            mode="determinate"
         )
 
         self.progresso.pack(
             pady=10
         )
 
-        self.progresso.stop()
         self.progresso.set(0)
 
         self.status = ctk.CTkLabel(
@@ -174,7 +183,7 @@ class VideoPage(ctk.CTkFrame):
                 "Selecione um projeto "
                 "para começar."
             ),
-            wraplength=650
+            wraplength=700
         )
 
         self.status.pack(
@@ -215,10 +224,7 @@ class VideoPage(ctk.CTkFrame):
     def iniciar_geracao(self):
         if not self.projetos:
             self.status.configure(
-                text=(
-                    "Nenhum projeto foi "
-                    "encontrado."
-                )
+                text="Nenhum projeto foi encontrado."
             )
             return
 
@@ -277,26 +283,29 @@ class VideoPage(ctk.CTkFrame):
             )
             return
 
+        if self.modo.get() == "Vídeo completo":
+            limite_perguntas = None
+        else:
+            limite_perguntas = 3
+
         self.botao_gerar.configure(
             state="disabled",
             text="GERANDO..."
         )
 
-        self.status.configure(
-            text=(
-                "Gerando frames, contagem "
-                "regressiva e vídeo final..."
-            )
-        )
+        self.progresso.set(0)
 
-        self.progresso.start()
+        self.status.configure(
+            text="Preparando a geração do vídeo..."
+        )
 
         thread = threading.Thread(
             target=self.gerar_video,
             args=(
                 pasta_projeto,
                 perguntas,
-                tempo
+                tempo,
+                limite_perguntas
             ),
             daemon=True
         )
@@ -307,15 +316,19 @@ class VideoPage(ctk.CTkFrame):
         self,
         pasta_projeto,
         perguntas,
-        tempo
+        tempo,
+        limite_perguntas
     ):
         try:
             caminho_video = (
-                self.video_generator
-                .gerar_video_teste(
+                self.video_generator.gerar_video(
                     pasta_projeto=pasta_projeto,
                     perguntas=perguntas,
-                    tempo_resposta=tempo
+                    tempo_resposta=tempo,
+                    limite_perguntas=limite_perguntas,
+                    callback_progresso=(
+                        self.receber_progresso
+                    )
                 )
             )
 
@@ -332,16 +345,48 @@ class VideoPage(ctk.CTkFrame):
                 str(erro)
             )
 
+    def receber_progresso(
+        self,
+        atual,
+        total,
+        mensagem
+    ):
+        self.after(
+            0,
+            self.atualizar_progresso,
+            atual,
+            total,
+            mensagem
+        )
+
+    def atualizar_progresso(
+        self,
+        atual,
+        total,
+        mensagem
+    ):
+        if total > 0:
+            percentual = atual / total
+        else:
+            percentual = 0
+
+        self.progresso.set(
+            percentual
+        )
+
+        self.status.configure(
+            text=mensagem
+        )
+
     def geracao_concluida(
         self,
         caminho_video
     ):
-        self.progresso.stop()
         self.progresso.set(1)
 
         self.botao_gerar.configure(
             state="normal",
-            text="GERAR VÍDEO DE TESTE"
+            text="GERAR VÍDEO"
         )
 
         self.status.configure(
@@ -355,12 +400,11 @@ class VideoPage(ctk.CTkFrame):
         self,
         mensagem
     ):
-        self.progresso.stop()
         self.progresso.set(0)
 
         self.botao_gerar.configure(
             state="normal",
-            text="GERAR VÍDEO DE TESTE"
+            text="GERAR VÍDEO"
         )
 
         self.status.configure(
