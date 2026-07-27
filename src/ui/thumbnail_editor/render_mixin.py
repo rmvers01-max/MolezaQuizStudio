@@ -162,26 +162,18 @@ class RenderMixin:
             elemento.x,
             elemento.y
         )
-
         x2, y2 = self._documento_para_canvas(
             elemento.x + elemento.largura,
             elemento.y + elemento.altura
         )
-
         largura_contorno = max(
-            int(
-                elemento.largura_contorno
-                * self.escala_atual
-            ),
+            int(elemento.largura_contorno * self.escala_atual),
             0
         )
 
         if elemento.formato == "circulo":
             self.canvas.create_oval(
-                x1,
-                y1,
-                x2,
-                y2,
+                x1, y1, x2, y2,
                 fill=elemento.cor,
                 outline=(
                     elemento.cor_contorno
@@ -189,30 +181,32 @@ class RenderMixin:
                     else ""
                 ),
                 width=largura_contorno,
-                tags=(
-                    "elemento",
-                    elemento.id
-                )
+                tags=("elemento", elemento.id)
             )
+            return
 
-        else:
-            self.canvas.create_rectangle(
-                x1,
-                y1,
-                x2,
-                y2,
-                fill=elemento.cor,
-                outline=(
-                    elemento.cor_contorno
-                    if largura_contorno > 0
-                    else ""
-                ),
-                width=largura_contorno,
-                tags=(
-                    "elemento",
-                    elemento.id
+        centro_x = (x1 + x2) / 2
+        centro_y = (y1 + y2) / 2
+        pontos = [(x1, y1), (x2, y1), (x2, y2), (x1, y2)]
+        if elemento.rotacao:
+            pontos = [
+                self._rotacionar_ponto(
+                    px, py, centro_x, centro_y, elemento.rotacao
                 )
-            )
+                for px, py in pontos
+            ]
+        coordenadas = [valor for ponto in pontos for valor in ponto]
+        self.canvas.create_polygon(
+            *coordenadas,
+            fill=elemento.cor,
+            outline=(
+                elemento.cor_contorno
+                if largura_contorno > 0
+                else ""
+            ),
+            width=largura_contorno,
+            tags=("elemento", elemento.id)
+        )
 
     def _renderizar_texto(
         self,
@@ -222,72 +216,41 @@ class RenderMixin:
             elemento.x,
             elemento.y
         )
-
         x2, y2 = self._documento_para_canvas(
             elemento.x + elemento.largura,
             elemento.y + elemento.altura
         )
-
         tamanho = max(
-            int(
-                elemento.tamanho_fonte
-                * self.escala_atual
-            ),
+            int(elemento.tamanho_fonte * self.escala_atual),
             8
         )
-
-        estilo = (
-            "bold"
-            if elemento.negrito
-            else "normal"
-        )
-
-        fonte = (
-            elemento.fonte,
-            tamanho,
-            estilo
-        )
-
+        estilo = "bold" if elemento.negrito else "normal"
+        fonte = (elemento.fonte, tamanho, estilo)
         ancora = "center"
-
-        posicao_x = (
-            x1 + x2
-        ) / 2
+        posicao_x = (x1 + x2) / 2
 
         if elemento.alinhamento == "esquerda":
             ancora = "w"
             posicao_x = x1
-
         elif elemento.alinhamento == "direita":
             ancora = "e"
             posicao_x = x2
 
-        posicao_y = (
-            y1 + y2
-        ) / 2
-
-        largura_texto = max(
-            int(x2 - x1),
-            1
-        )
+        posicao_y = (y1 + y2) / 2
+        largura_texto = max(int(x2 - x1), 1)
+        angulo = -float(elemento.rotacao)
 
         if elemento.sombra:
             self.canvas.create_text(
-                posicao_x
-                + elemento.deslocamento_sombra_x
-                * self.escala_atual,
-                posicao_y
-                + elemento.deslocamento_sombra_y
-                * self.escala_atual,
+                posicao_x + elemento.deslocamento_sombra_x * self.escala_atual,
+                posicao_y + elemento.deslocamento_sombra_y * self.escala_atual,
                 text=elemento.texto,
                 fill=elemento.cor_sombra,
                 font=fonte,
                 anchor=ancora,
                 width=largura_texto,
-                tags=(
-                    "elemento",
-                    elemento.id
-                )
+                angle=angulo,
+                tags=("elemento", elemento.id)
             )
 
         self.canvas.create_text(
@@ -298,10 +261,8 @@ class RenderMixin:
             font=fonte,
             anchor=ancora,
             width=largura_texto,
-            tags=(
-                "elemento",
-                elemento.id
-            )
+            angle=angulo,
+            tags=("elemento", elemento.id)
         )
 
     def _renderizar_imagem(
@@ -356,7 +317,8 @@ class RenderMixin:
             altura_area,
             bool(elemento.preencher_area),
             bool(elemento.preservar_proporcao),
-            int(elemento.opacidade)
+            int(elemento.opacidade),
+            round(float(elemento.rotacao), 2)
         )
 
         imagem_tk = self.imagens_cache.get(
@@ -450,6 +412,13 @@ class RenderMixin:
 
                 imagem.putalpha(
                     canal_alpha
+                )
+
+            if elemento.rotacao:
+                imagem = imagem.rotate(
+                    -float(elemento.rotacao),
+                    expand=True,
+                    resample=Image.Resampling.BICUBIC
                 )
 
             imagem_tk = ImageTk.PhotoImage(
@@ -595,58 +564,62 @@ class RenderMixin:
         self,
         elemento: ThumbnailElement
     ):
-        x1, y1 = self._documento_para_canvas(
-            elemento.x,
-            elemento.y
-        )
-
-        x2, y2 = self._documento_para_canvas(
-            elemento.x + elemento.largura,
-            elemento.y + elemento.altura
-        )
-
-        self.canvas.create_rectangle(
-            x1,
-            y1,
-            x2,
-            y2,
+        pontos = self._obter_pontos_alcas_canvas(elemento)
+        ordem = [
+            self.ALCA_SUPERIOR_ESQUERDA,
+            self.ALCA_SUPERIOR_DIREITA,
+            self.ALCA_INFERIOR_DIREITA,
+            self.ALCA_INFERIOR_ESQUERDA,
+        ]
+        caixa = [valor for nome in ordem for valor in pontos[nome]]
+        self.canvas.create_polygon(
+            *caixa,
+            fill="",
             outline="#36A9FF",
             width=2,
-            dash=(
-                6,
-                4
-            ),
+            dash=(6, 4),
             tags=("selecao",)
         )
 
-        pontos = self._obter_pontos_alcas_canvas(
-            elemento
+        topo = pontos[self.ALCA_MEIO_SUPERIOR]
+        rotacao = pontos[self.ALCA_ROTACAO]
+        self.canvas.create_line(
+            topo[0], topo[1], rotacao[0], rotacao[1],
+            fill="#36A9FF",
+            width=2,
+            tags=("selecao",)
         )
 
         tamanho = self.TAMANHO_ALCA
-
-        for alca, (
-            ponto_x,
-            ponto_y
-        ) in pontos.items():
-            self.canvas.create_rectangle(
-                ponto_x - tamanho / 2,
-                ponto_y - tamanho / 2,
-                ponto_x + tamanho / 2,
-                ponto_y + tamanho / 2,
-                fill="#FFFFFF",
-                outline="#36A9FF",
-                width=2,
-                tags=(
-                    "selecao",
-                    f"alca_{alca}"
+        for alca, (ponto_x, ponto_y) in pontos.items():
+            if alca == self.ALCA_ROTACAO:
+                self.canvas.create_oval(
+                    ponto_x - tamanho / 2,
+                    ponto_y - tamanho / 2,
+                    ponto_x + tamanho / 2,
+                    ponto_y + tamanho / 2,
+                    fill="#FFFFFF",
+                    outline="#36A9FF",
+                    width=2,
+                    tags=("selecao", f"alca_{alca}")
                 )
-            )
+            else:
+                self.canvas.create_rectangle(
+                    ponto_x - tamanho / 2,
+                    ponto_y - tamanho / 2,
+                    ponto_x + tamanho / 2,
+                    ponto_y + tamanho / 2,
+                    fill="#FFFFFF",
+                    outline="#36A9FF",
+                    width=2,
+                    tags=("selecao", f"alca_{alca}")
+                )
 
         if elemento.bloqueado:
+            x, y = pontos[self.ALCA_SUPERIOR_ESQUERDA]
             self.canvas.create_text(
-                x1 + 8,
-                y1 + 8,
+                x + 8,
+                y + 8,
                 text="🔒",
                 anchor="nw",
                 fill="#FFFFFF",

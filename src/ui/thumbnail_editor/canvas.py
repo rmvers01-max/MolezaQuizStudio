@@ -28,6 +28,11 @@ class ThumbnailCanvas(
     ALCA_SUPERIOR_DIREITA = "superior_direita"
     ALCA_INFERIOR_ESQUERDA = "inferior_esquerda"
     ALCA_INFERIOR_DIREITA = "inferior_direita"
+    ALCA_MEIO_SUPERIOR = "meio_superior"
+    ALCA_MEIO_INFERIOR = "meio_inferior"
+    ALCA_MEIO_ESQUERDA = "meio_esquerda"
+    ALCA_MEIO_DIREITA = "meio_direita"
+    ALCA_ROTACAO = "rotacao"
 
     def __init__(
         self,
@@ -70,6 +75,7 @@ class ThumbnailCanvas(
 
         self.arrastando = False
         self.redimensionando = False
+        self.girando = False
 
         self.alca_ativa = None
 
@@ -80,6 +86,8 @@ class ThumbnailCanvas(
         self.inicio_y_documento = 0.0
 
         self.geometria_inicial = None
+        self.angulo_mouse_inicial = 0.0
+        self.rotacao_inicial = 0.0
 
         self.escala_atual = 1.0
         self.escala_ajuste = 1.0
@@ -200,6 +208,7 @@ class ThumbnailCanvas(
 
         self.arrastando = False
         self.redimensionando = False
+        self.girando = False
         self.alca_ativa = None
         self.geometria_inicial = None
 
@@ -251,6 +260,7 @@ class ThumbnailCanvas(
 
         self.arrastando = False
         self.redimensionando = False
+        self.girando = False
         self.alca_ativa = None
         self.geometria_inicial = None
 
@@ -272,6 +282,7 @@ class ThumbnailCanvas(
 
         self.arrastando = False
         self.redimensionando = False
+        self.girando = False
         self.alca_ativa = None
         self.geometria_inicial = None
 
