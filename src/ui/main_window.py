@@ -1,5 +1,6 @@
 import customtkinter as ctk
 
+from ui.ai_page import AIPage
 from ui.export_page import ExportPage
 from ui.narration_page import NarrationPage
 from ui.projects_page import ProjectsPage
@@ -120,6 +121,7 @@ class MainWindow(ctk.CTk):
 
         self._criar_secao_producao()
         self._criar_secao_estudio()
+        self._criar_secao_ia()
         self._criar_secao_publicacao()
         self._criar_secao_sistema()
 
@@ -218,6 +220,19 @@ class MainWindow(ctk.CTk):
         self._adicionar_botao_indisponivel(
             texto="Banco de imagens",
             icone="🖼️"
+        )
+
+        self._adicionar_separador()
+
+    def _criar_secao_ia(self):
+        self._adicionar_titulo_secao(
+            "INTELIGÊNCIA ARTIFICIAL"
+        )
+
+        self.botao_central_ia = self._adicionar_botao_menu(
+            texto="Central de IA",
+            icone="🤖",
+            comando=self.abrir_central_ia
         )
 
         self._adicionar_separador()
@@ -483,6 +498,15 @@ class MainWindow(ctk.CTk):
 
         self._abrir_pagina(
             ThumbnailEditorPage
+        )
+
+    def abrir_central_ia(self):
+        self._destacar_botao(
+            self.botao_central_ia
+        )
+
+        self._abrir_pagina(
+            AIPage
         )
 
     def abrir_publicacao(self):
