@@ -1,5 +1,5 @@
 from pathlib import Path
-from tkinter import filedialog, messagebox
+from tkinter import colorchooser, filedialog, messagebox
 
 import customtkinter as ctk
 
@@ -9,8 +9,7 @@ from core.thumbnail_elements import (
     ImageElement,
     ShapeElement,
     TextElement,
-    ThumbnailDocument,
-    ThumbnailElement
+    ThumbnailDocument
 )
 from ui.thumbnail_canvas import ThumbnailCanvas
 
@@ -24,10 +23,14 @@ class ThumbnailEditorPage(ctk.CTkFrame):
     - selecionar e arrastar elementos;
     - alterar posição e tamanho;
     - alterar textos e cores;
+    - selecionar cores usando a paleta do Windows;
     - organizar camadas;
     - salvar e abrir documentos JSON;
     - exportar PNG ou JPG.
     """
+
+    COR_PADRAO = "#FFFFFF"
+    COR_CONTORNO_PADRAO = "#000000"
 
     def __init__(self, master):
         super().__init__(master)
@@ -55,6 +58,10 @@ class ThumbnailEditorPage(ctk.CTkFrame):
 
         self._criar_cabecalho()
         self._criar_area_editor()
+
+    # =========================================================
+    # CABEÇALHO
+    # =========================================================
 
     def _criar_cabecalho(self):
         cabecalho = ctk.CTkFrame(
@@ -180,6 +187,10 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             padx=4
         )
 
+    # =========================================================
+    # ÁREA PRINCIPAL
+    # =========================================================
+
     def _criar_area_editor(self):
         area = ctk.CTkFrame(
             self
@@ -214,6 +225,10 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         self._criar_painel_lateral(
             area
         )
+
+    # =========================================================
+    # BARRA DE FERRAMENTAS
+    # =========================================================
 
     def _criar_barra_ferramentas(
         self,
@@ -331,6 +346,10 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             pady=(18, 5)
         )
 
+    # =========================================================
+    # CANVAS
+    # =========================================================
+
     def _criar_area_canvas(
         self,
         area
@@ -424,13 +443,17 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             pady=(0, 12)
         )
 
+    # =========================================================
+    # PAINEL LATERAL
+    # =========================================================
+
     def _criar_painel_lateral(
         self,
         area
     ):
         painel = ctk.CTkFrame(
             area,
-            width=310
+            width=340
         )
 
         painel.grid(
@@ -514,6 +537,10 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             weight=1
         )
 
+    # =========================================================
+    # CAMPOS DE PROPRIEDADES
+    # =========================================================
+
     def _criar_campos_propriedades(
         self,
         painel
@@ -587,16 +614,26 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             "Tamanho da fonte"
         )
 
-        self.campo_cor = self._criar_campo(
-            painel,
-            10,
-            "Cor"
+        (
+            self.campo_cor,
+            self.amostra_cor,
+            self.botao_cor
+        ) = self._criar_seletor_cor(
+            painel=painel,
+            linha=10,
+            titulo="Cor",
+            comando=self.escolher_cor_principal
         )
 
-        self.campo_contorno = self._criar_campo(
-            painel,
-            11,
-            "Cor do contorno"
+        (
+            self.campo_contorno,
+            self.amostra_contorno,
+            self.botao_contorno
+        ) = self._criar_seletor_cor(
+            painel=painel,
+            linha=11,
+            titulo="Contorno",
+            comando=self.escolher_cor_contorno
         )
 
         self.campo_largura_contorno = self._criar_campo(
@@ -655,6 +692,305 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         )
 
         return campo
+
+    def _criar_seletor_cor(
+        self,
+        painel,
+        linha,
+        titulo,
+        comando
+    ):
+        ctk.CTkLabel(
+            painel,
+            text=titulo
+        ).grid(
+            row=linha,
+            column=0,
+            sticky="w",
+            padx=5,
+            pady=7
+        )
+
+        area = ctk.CTkFrame(
+            painel,
+            fg_color="transparent"
+        )
+
+        area.grid(
+            row=linha,
+            column=1,
+            sticky="ew",
+            padx=5,
+            pady=7
+        )
+
+        area.grid_columnconfigure(
+            0,
+            weight=1
+        )
+
+        campo = ctk.CTkEntry(
+            area
+        )
+
+        campo.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            padx=(0, 5)
+        )
+
+        amostra = ctk.CTkLabel(
+            area,
+            text="",
+            width=30,
+            height=28,
+            corner_radius=6,
+            fg_color=self.COR_PADRAO
+        )
+
+        amostra.grid(
+            row=0,
+            column=1,
+            padx=4
+        )
+
+        botao = ctk.CTkButton(
+            area,
+            text="Escolher",
+            width=70,
+            height=28,
+            command=comando
+        )
+
+        botao.grid(
+            row=0,
+            column=2,
+            padx=(4, 0)
+        )
+
+        return campo, amostra, botao
+
+    # =========================================================
+    # PALETA DE CORES
+    # =========================================================
+
+    def escolher_cor_principal(self):
+        elemento = self.elemento_selecionado
+
+        if elemento is None:
+            self.status.configure(
+                text="Selecione um texto ou uma forma primeiro."
+            )
+            return
+
+        if elemento.bloqueado:
+            self.status.configure(
+                text="Este elemento está bloqueado."
+            )
+            return
+
+        cor_atual = self._obter_cor_valida(
+            self.campo_cor.get(),
+            self.COR_PADRAO
+        )
+
+        _, cor_hexadecimal = colorchooser.askcolor(
+            color=cor_atual,
+            title="Escolha a cor do elemento",
+            parent=self.winfo_toplevel()
+        )
+
+        if not cor_hexadecimal:
+            return
+
+        cor_hexadecimal = cor_hexadecimal.upper()
+
+        self._definir_campo(
+            self.campo_cor,
+            cor_hexadecimal
+        )
+
+        self._atualizar_amostra_cor(
+            self.amostra_cor,
+            cor_hexadecimal
+        )
+
+        if isinstance(
+            elemento,
+            TextElement
+        ):
+            elemento.cor = cor_hexadecimal
+
+        elif isinstance(
+            elemento,
+            ShapeElement
+        ):
+            elemento.cor = cor_hexadecimal
+
+        else:
+            self.status.configure(
+                text=(
+                    "A cor principal está disponível "
+                    "para textos e formas."
+                )
+            )
+            return
+
+        self._atualizar_canvas_apos_cor(
+            "Cor alterada."
+        )
+
+    def escolher_cor_contorno(self):
+        elemento = self.elemento_selecionado
+
+        if elemento is None:
+            self.status.configure(
+                text="Selecione um texto ou uma forma primeiro."
+            )
+            return
+
+        if elemento.bloqueado:
+            self.status.configure(
+                text="Este elemento está bloqueado."
+            )
+            return
+
+        cor_atual = self._obter_cor_valida(
+            self.campo_contorno.get(),
+            self.COR_CONTORNO_PADRAO
+        )
+
+        _, cor_hexadecimal = colorchooser.askcolor(
+            color=cor_atual,
+            title="Escolha a cor do contorno",
+            parent=self.winfo_toplevel()
+        )
+
+        if not cor_hexadecimal:
+            return
+
+        cor_hexadecimal = cor_hexadecimal.upper()
+
+        self._definir_campo(
+            self.campo_contorno,
+            cor_hexadecimal
+        )
+
+        self._atualizar_amostra_cor(
+            self.amostra_contorno,
+            cor_hexadecimal
+        )
+
+        if isinstance(
+            elemento,
+            TextElement
+        ):
+            elemento.cor_contorno = cor_hexadecimal
+
+        elif isinstance(
+            elemento,
+            ShapeElement
+        ):
+            elemento.cor_contorno = cor_hexadecimal
+
+        else:
+            self.status.configure(
+                text=(
+                    "A cor de contorno está disponível "
+                    "para textos e formas."
+                )
+            )
+            return
+
+        self._atualizar_canvas_apos_cor(
+            "Cor do contorno alterada."
+        )
+
+    def _atualizar_canvas_apos_cor(
+        self,
+        mensagem
+    ):
+        self.canvas_editor.renderizar()
+
+        self.documento_alterado = True
+
+        self.atualizar_lista_camadas()
+        self._atualizar_rotulo_arquivo()
+
+        self.status.configure(
+            text=mensagem
+        )
+
+    def _atualizar_amostras_atuais(self):
+        cor = self._obter_cor_valida(
+            self.campo_cor.get(),
+            self.COR_PADRAO
+        )
+
+        contorno = self._obter_cor_valida(
+            self.campo_contorno.get(),
+            self.COR_CONTORNO_PADRAO
+        )
+
+        self._atualizar_amostra_cor(
+            self.amostra_cor,
+            cor
+        )
+
+        self._atualizar_amostra_cor(
+            self.amostra_contorno,
+            contorno
+        )
+
+    def _atualizar_amostra_cor(
+        self,
+        amostra,
+        cor
+    ):
+        cor = self._obter_cor_valida(
+            cor,
+            "#777777"
+        )
+
+        try:
+            amostra.configure(
+                fg_color=cor
+            )
+        except ValueError:
+            amostra.configure(
+                fg_color="#777777"
+            )
+
+    def _obter_cor_valida(
+        self,
+        cor,
+        padrao
+    ):
+        cor = str(
+            cor
+        ).strip()
+
+        if (
+            len(cor) == 7
+            and cor.startswith("#")
+        ):
+            try:
+                int(
+                    cor[1:],
+                    16
+                )
+
+                return cor.upper()
+
+            except ValueError:
+                pass
+
+        return padrao
+
+    # =========================================================
+    # DOCUMENTO
+    # =========================================================
 
     def criar_documento_inicial(self):
         documento = ThumbnailDocument(
@@ -828,6 +1164,10 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 parent=self.winfo_toplevel()
             )
 
+    # =========================================================
+    # EXPORTAÇÃO
+    # =========================================================
+
     def exportar_png(self):
         self._exportar_imagem(
             extensao=".png",
@@ -888,6 +1228,10 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 message=str(erro),
                 parent=self.winfo_toplevel()
             )
+
+    # =========================================================
+    # ADICIONAR ELEMENTOS
+    # =========================================================
 
     def adicionar_texto(self):
         documento = self.canvas_editor.obter_documento()
@@ -1004,6 +1348,10 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             "Círculo adicionado."
         )
 
+    # =========================================================
+    # SELEÇÃO E ALTERAÇÕES
+    # =========================================================
+
     def ao_selecionar_elemento(
         self,
         elemento
@@ -1043,7 +1391,10 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         self.atualizar_lista_camadas()
         self._atualizar_rotulo_arquivo()
 
-        elemento = self.canvas_editor.obter_elemento_selecionado()
+        elemento = (
+            self.canvas_editor
+            .obter_elemento_selecionado()
+        )
 
         if elemento is not None:
             self._preencher_propriedades(
@@ -1100,14 +1451,14 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                     1
                 )
 
-                elemento.cor = (
-                    self.campo_cor.get().strip()
-                    or elemento.cor
+                elemento.cor = self._obter_cor_valida(
+                    self.campo_cor.get(),
+                    elemento.cor
                 )
 
-                elemento.cor_contorno = (
-                    self.campo_contorno.get().strip()
-                    or elemento.cor_contorno
+                elemento.cor_contorno = self._obter_cor_valida(
+                    self.campo_contorno.get(),
+                    elemento.cor_contorno
                 )
 
                 elemento.largura_contorno = max(
@@ -1121,14 +1472,14 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 elemento,
                 ShapeElement
             ):
-                elemento.cor = (
-                    self.campo_cor.get().strip()
-                    or elemento.cor
+                elemento.cor = self._obter_cor_valida(
+                    self.campo_cor.get(),
+                    elemento.cor
                 )
 
-                elemento.cor_contorno = (
-                    self.campo_contorno.get().strip()
-                    or elemento.cor_contorno
+                elemento.cor_contorno = self._obter_cor_valida(
+                    self.campo_contorno.get(),
+                    elemento.cor_contorno
                 )
 
                 elemento.largura_contorno = max(
@@ -1147,6 +1498,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
 
             self.documento_alterado = True
             self._atualizar_rotulo_arquivo()
+            self._atualizar_amostras_atuais()
 
             self.status.configure(
                 text="Propriedades aplicadas."
@@ -1158,6 +1510,10 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 message=str(erro),
                 parent=self.winfo_toplevel()
             )
+
+    # =========================================================
+    # EXCLUSÃO E CAMADAS
+    # =========================================================
 
     def excluir_elemento(self):
         elemento = self.elemento_selecionado
@@ -1228,7 +1584,9 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             reverse=True
         )
 
-        for indice, elemento in enumerate(elementos):
+        for indice, elemento in enumerate(
+            elementos
+        ):
             texto = (
                 f"{elemento.nome}\n"
                 f"{elemento.tipo} • camada {elemento.camada}"
@@ -1266,6 +1624,10 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 padx=4,
                 pady=3
             )
+
+    # =========================================================
+    # PREENCHIMENTO DOS CAMPOS
+    # =========================================================
 
     def _preencher_propriedades(
         self,
@@ -1341,6 +1703,10 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 "normal"
             )
 
+            self._definir_estado_botoes_cor(
+                "normal"
+            )
+
         elif isinstance(
             elemento,
             ShapeElement
@@ -1378,6 +1744,10 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 state="disabled"
             )
 
+            self._definir_estado_botoes_cor(
+                "normal"
+            )
+
         else:
             self._definir_campo(
                 self.campo_texto,
@@ -1408,10 +1778,20 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 "disabled"
             )
 
+            self._definir_estado_botoes_cor(
+                "disabled"
+            )
+
+        self._atualizar_amostras_atuais()
+
         if elemento.bloqueado:
             self._definir_estado_campos(
                 "disabled"
             )
+
+    # =========================================================
+    # ESTADOS DOS CAMPOS
+    # =========================================================
 
     def _definir_estado_campos(
         self,
@@ -1424,6 +1804,10 @@ class ThumbnailEditorPage(ctk.CTkFrame):
 
         self.botao_aplicar.configure(
             state=estado
+        )
+
+        self._definir_estado_botoes_cor(
+            estado
         )
 
     def _definir_estado_visual(
@@ -1440,6 +1824,18 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             campo.configure(
                 state=estado
             )
+
+    def _definir_estado_botoes_cor(
+        self,
+        estado
+    ):
+        self.botao_cor.configure(
+            state=estado
+        )
+
+        self.botao_contorno.configure(
+            state=estado
+        )
 
     def _todos_campos(self):
         return [
@@ -1468,6 +1864,16 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 "end"
             )
 
+        self._atualizar_amostra_cor(
+            self.amostra_cor,
+            "#777777"
+        )
+
+        self._atualizar_amostra_cor(
+            self.amostra_contorno,
+            "#777777"
+        )
+
     def _definir_campo(
         self,
         campo,
@@ -1494,6 +1900,10 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         campo.configure(
             state=estado_anterior
         )
+
+    # =========================================================
+    # AUXILIARES
+    # =========================================================
 
     def _limitar_elemento(
         self,
