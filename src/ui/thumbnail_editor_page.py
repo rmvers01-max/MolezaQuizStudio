@@ -1,4 +1,6 @@
+from copy import deepcopy
 from pathlib import Path
+from uuid import uuid4
 from tkinter import colorchooser, filedialog, messagebox
 
 import customtkinter as ctk
@@ -12,6 +14,7 @@ from core.thumbnail_elements import (
     ThumbnailDocument
 )
 from ui.thumbnail_canvas import ThumbnailCanvas
+from ui.thumbnail_editor_history import ThumbnailEditorHistoryController
 
 
 class ThumbnailEditorPage(ctk.CTkFrame):
@@ -39,11 +42,21 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         self.document_renderer = ThumbnailDocumentRenderer()
 
         self.elemento_selecionado = None
+        self.elemento_copiado = None
         self.caminho_documento_atual = None
         self.documento_alterado = False
 
+        self.historico_editor = ThumbnailEditorHistoryController(
+            owner=self,
+            obter_documento=self._obter_documento_atual,
+            restaurar_documento=self._restaurar_documento_historico,
+            limite=60
+        )
+
         self.criar_interface()
         self.criar_documento_inicial()
+        self.historico_editor.vincular_atalhos()
+        self._vincular_atalhos_edicao()
 
     def criar_interface(self):
         self.grid_columnconfigure(
@@ -121,6 +134,20 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             row=0,
             column=1,
             sticky="e"
+        )
+
+        self.historico_editor.criar_botoes(
+            area_botoes
+        )
+
+        ctk.CTkFrame(
+            area_botoes,
+            width=1,
+            height=28,
+            fg_color="gray35"
+        ).pack(
+            side="left",
+            padx=6
         )
 
         ctk.CTkButton(
@@ -293,6 +320,57 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             command=self.adicionar_circulo
         ).pack(
             pady=6
+        )
+
+        ctk.CTkFrame(
+            barra,
+            height=2,
+            fg_color="gray35"
+        ).pack(
+            fill="x",
+            padx=15,
+            pady=14
+        )
+
+        ctk.CTkLabel(
+            barra,
+            text="Edição",
+            font=("Arial", 16, "bold")
+        ).pack(
+            pady=(0, 10)
+        )
+
+        ctk.CTkButton(
+            barra,
+            text="Copiar",
+            width=145,
+            fg_color="gray35",
+            hover_color="gray25",
+            command=self.copiar_elemento
+        ).pack(
+            pady=5
+        )
+
+        ctk.CTkButton(
+            barra,
+            text="Colar",
+            width=145,
+            fg_color="gray35",
+            hover_color="gray25",
+            command=self.colar_elemento
+        ).pack(
+            pady=5
+        )
+
+        ctk.CTkButton(
+            barra,
+            text="Duplicar",
+            width=145,
+            fg_color="gray35",
+            hover_color="gray25",
+            command=self.duplicar_elemento
+        ).pack(
+            pady=5
         )
 
         ctk.CTkFrame(
@@ -914,6 +992,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         self.canvas_editor.renderizar()
 
         self.documento_alterado = True
+        self.historico_editor.registrar()
 
         self.atualizar_lista_camadas()
         self._atualizar_rotulo_arquivo()
@@ -1035,11 +1114,15 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         )
 
         self.elemento_selecionado = None
+        self.elemento_copiado = None
         self.caminho_documento_atual = None
         self.documento_alterado = False
 
         self.atualizar_lista_camadas()
         self._atualizar_rotulo_arquivo()
+        self.historico_editor.iniciar(
+            documento
+        )
 
     def novo_documento(self):
         if not self._confirmar_descarte():
@@ -1091,6 +1174,9 @@ class ThumbnailEditorPage(ctk.CTkFrame):
 
             self.atualizar_lista_camadas()
             self._atualizar_rotulo_arquivo()
+            self.historico_editor.iniciar(
+                documento
+            )
 
             self.status.configure(
                 text=f"Documento carregado: {caminho}"
@@ -1387,6 +1473,9 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         documento
     ):
         self.documento_alterado = True
+        self.historico_editor.registrar(
+            documento
+        )
 
         self.atualizar_lista_camadas()
         self._atualizar_rotulo_arquivo()
@@ -1497,6 +1586,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             self.atualizar_lista_camadas()
 
             self.documento_alterado = True
+            self.historico_editor.registrar()
             self._atualizar_rotulo_arquivo()
             self._atualizar_amostras_atuais()
 
@@ -1510,6 +1600,220 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 message=str(erro),
                 parent=self.winfo_toplevel()
             )
+
+    # =========================================================
+    # COPIAR, COLAR E DUPLICAR
+    # =========================================================
+
+    def copiar_elemento(self):
+        elemento = self.elemento_selecionado
+
+        if elemento is None:
+            self.status.configure(
+                text="Selecione um elemento para copiar."
+            )
+            return
+
+        if elemento.bloqueado:
+            self.status.configure(
+                text="Este elemento está bloqueado e não pode ser copiado."
+            )
+            return
+
+        self.elemento_copiado = deepcopy(elemento)
+
+        self.status.configure(
+            text=f"Elemento '{elemento.nome}' copiado."
+        )
+
+    def colar_elemento(self):
+        if self.elemento_copiado is None:
+            self.status.configure(
+                text="Nenhum elemento foi copiado."
+            )
+            return
+
+        novo_elemento = deepcopy(self.elemento_copiado)
+        novo_elemento.id = str(uuid4())
+        novo_elemento.nome = self._gerar_nome_copia(
+            novo_elemento.nome
+        )
+        novo_elemento.bloqueado = False
+
+        documento = self.canvas_editor.obter_documento()
+        novo_elemento.camada = self._proxima_camada(documento)
+
+        self._deslocar_copia_para_area_visivel(
+            novo_elemento,
+            deslocamento=30
+        )
+
+        self.canvas_editor.adicionar_elemento(
+            novo_elemento
+        )
+
+        self.elemento_selecionado = novo_elemento
+        self.elemento_copiado = deepcopy(novo_elemento)
+
+        self.status.configure(
+            text=f"Elemento '{novo_elemento.nome}' colado."
+        )
+
+    def duplicar_elemento(self):
+        elemento = self.elemento_selecionado
+
+        if elemento is None:
+            self.status.configure(
+                text="Selecione um elemento para duplicar."
+            )
+            return
+
+        if elemento.bloqueado:
+            self.status.configure(
+                text="Este elemento está bloqueado e não pode ser duplicado."
+            )
+            return
+
+        self.elemento_copiado = deepcopy(elemento)
+        self.colar_elemento()
+
+    def _gerar_nome_copia(self, nome_original):
+        nome = str(nome_original).strip() or "Elemento"
+
+        if nome.endswith(" - cópia"):
+            return nome
+
+        return f"{nome} - cópia"
+
+    def _deslocar_copia_para_area_visivel(
+        self,
+        elemento,
+        deslocamento=30
+    ):
+        documento = self.canvas_editor.obter_documento()
+
+        novo_x = elemento.x + deslocamento
+        novo_y = elemento.y + deslocamento
+
+        if novo_x + elemento.largura > documento.largura:
+            novo_x = max(
+                elemento.x - deslocamento,
+                0
+            )
+
+        if novo_y + elemento.altura > documento.altura:
+            novo_y = max(
+                elemento.y - deslocamento,
+                0
+            )
+
+        elemento.x = max(
+            min(
+                novo_x,
+                documento.largura - elemento.largura
+            ),
+            0
+        )
+
+        elemento.y = max(
+            min(
+                novo_y,
+                documento.altura - elemento.altura
+            ),
+            0
+        )
+
+    def _vincular_atalhos_edicao(self):
+        janela = self.winfo_toplevel()
+
+        janela.bind(
+            "<Control-c>",
+            self._atalho_copiar,
+            add="+"
+        )
+
+        janela.bind(
+            "<Control-C>",
+            self._atalho_copiar,
+            add="+"
+        )
+
+        janela.bind(
+            "<Control-v>",
+            self._atalho_colar,
+            add="+"
+        )
+
+        janela.bind(
+            "<Control-V>",
+            self._atalho_colar,
+            add="+"
+        )
+
+        janela.bind(
+            "<Control-d>",
+            self._atalho_duplicar,
+            add="+"
+        )
+
+        janela.bind(
+            "<Control-D>",
+            self._atalho_duplicar,
+            add="+"
+        )
+
+        janela.bind(
+            "<Delete>",
+            self._atalho_excluir,
+            add="+"
+        )
+
+    def _atalho_copiar(self, evento=None):
+        if self._foco_em_campo_de_texto():
+            return None
+
+        self.copiar_elemento()
+        return "break"
+
+    def _atalho_colar(self, evento=None):
+        if self._foco_em_campo_de_texto():
+            return None
+
+        self.colar_elemento()
+        return "break"
+
+    def _atalho_duplicar(self, evento=None):
+        if self._foco_em_campo_de_texto():
+            return None
+
+        self.duplicar_elemento()
+        return "break"
+
+    def _atalho_excluir(self, evento=None):
+        if self._foco_em_campo_de_texto():
+            return None
+
+        self.excluir_elemento()
+        return "break"
+
+    def _foco_em_campo_de_texto(self):
+        widget = self.focus_get()
+
+        if widget is None:
+            return False
+
+        try:
+            classe = widget.winfo_class()
+        except Exception:
+            return False
+
+        return classe in {
+            "Entry",
+            "Text",
+            "TEntry",
+            "TText",
+            "Spinbox"
+        }
 
     # =========================================================
     # EXCLUSÃO E CAMADAS
@@ -1905,6 +2209,28 @@ class ThumbnailEditorPage(ctk.CTkFrame):
     # AUXILIARES
     # =========================================================
 
+    def _obter_documento_atual(self):
+        return self.canvas_editor.obter_documento()
+
+    def _restaurar_documento_historico(
+        self,
+        documento,
+        mensagem
+    ):
+        self.canvas_editor.definir_documento(
+            documento
+        )
+
+        self.elemento_selecionado = None
+        self.documento_alterado = True
+
+        self.atualizar_lista_camadas()
+        self._atualizar_rotulo_arquivo()
+
+        self.status.configure(
+            text=mensagem
+        )
+
     def _limitar_elemento(
         self,
         elemento
@@ -1947,6 +2273,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         mensagem
     ):
         self.documento_alterado = True
+        self.historico_editor.registrar()
 
         self.atualizar_lista_camadas()
         self._atualizar_rotulo_arquivo()

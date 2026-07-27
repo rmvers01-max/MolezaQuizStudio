@@ -1,0 +1,11 @@
+Arquivos da refatoração do Editor de Thumbnail
+
+Copie os 5 arquivos .py para D:\MolezaQuizStudio\src\ui\
+
+- thumbnail_editor_page.py (substitui o atual)
+- thumbnail_editor_colors.py
+- thumbnail_editor_document.py
+- thumbnail_editor_elements.py
+- thumbnail_editor_history.py
+
+O arquivo src/core/thumbnail_history.py criado na etapa anterior deve continuar no projeto.
