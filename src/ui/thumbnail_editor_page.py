@@ -3,6 +3,8 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
+from core.thumbnail_document_manager import ThumbnailDocumentManager
+from core.thumbnail_document_renderer import ThumbnailDocumentRenderer
 from core.thumbnail_elements import (
     ImageElement,
     ShapeElement,
@@ -15,25 +17,27 @@ from ui.thumbnail_canvas import ThumbnailCanvas
 
 class ThumbnailEditorPage(ctk.CTkFrame):
     """
-    Primeira página do editor visual de thumbnails.
+    Editor visual de thumbnails.
 
-    Nesta versão já é possível:
-    - adicionar textos;
-    - adicionar imagens;
-    - adicionar retângulos e círculos;
-    - selecionar elementos;
-    - arrastar elementos;
-    - editar posição e tamanho;
-    - alterar texto e cores;
+    Recursos atuais:
+    - adicionar textos, imagens e formas;
+    - selecionar e arrastar elementos;
+    - alterar posição e tamanho;
+    - alterar textos e cores;
     - organizar camadas;
-    - excluir elementos.
+    - salvar e abrir documentos JSON;
+    - exportar PNG ou JPG.
     """
 
     def __init__(self, master):
         super().__init__(master)
 
+        self.document_manager = ThumbnailDocumentManager()
+        self.document_renderer = ThumbnailDocumentRenderer()
+
         self.elemento_selecionado = None
-        self.atualizando_propriedades = False
+        self.caminho_documento_atual = None
+        self.documento_alterado = False
 
         self.criar_interface()
         self.criar_documento_inicial()
@@ -85,23 +89,18 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         ctk.CTkLabel(
             area_titulo,
             text="Editor de Thumbnail",
-            font=(
-                "Arial",
-                28,
-                "bold"
-            )
+            font=("Arial", 28, "bold")
         ).pack(
             anchor="w"
         )
 
-        ctk.CTkLabel(
+        self.rotulo_arquivo = ctk.CTkLabel(
             area_titulo,
-            text=(
-                "Adicione, selecione e mova elementos "
-                "livremente sobre a thumbnail."
-            ),
+            text="Novo documento",
             text_color="gray70"
-        ).pack(
+        )
+
+        self.rotulo_arquivo.pack(
             anchor="w",
             pady=(4, 0)
         )
@@ -119,24 +118,66 @@ class ThumbnailEditorPage(ctk.CTkFrame):
 
         ctk.CTkButton(
             area_botoes,
-            text="Novo documento",
-            width=145,
+            text="Novo",
+            width=90,
             command=self.novo_documento
         ).pack(
             side="left",
-            padx=5
+            padx=4
         )
 
         ctk.CTkButton(
             area_botoes,
-            text="Atualizar canvas",
-            width=145,
-            fg_color="gray35",
-            hover_color="gray25",
-            command=self.atualizar_canvas
+            text="Abrir",
+            width=90,
+            command=self.abrir_documento
         ).pack(
             side="left",
-            padx=5
+            padx=4
+        )
+
+        ctk.CTkButton(
+            area_botoes,
+            text="Salvar",
+            width=90,
+            command=self.salvar_documento
+        ).pack(
+            side="left",
+            padx=4
+        )
+
+        ctk.CTkButton(
+            area_botoes,
+            text="Salvar como",
+            width=110,
+            fg_color="gray35",
+            hover_color="gray25",
+            command=self.salvar_documento_como
+        ).pack(
+            side="left",
+            padx=4
+        )
+
+        ctk.CTkButton(
+            area_botoes,
+            text="Exportar PNG",
+            width=120,
+            command=self.exportar_png
+        ).pack(
+            side="left",
+            padx=4
+        )
+
+        ctk.CTkButton(
+            area_botoes,
+            text="Exportar JPG",
+            width=120,
+            fg_color="#8B5CF6",
+            hover_color="#7C3AED",
+            command=self.exportar_jpg
+        ).pack(
+            side="left",
+            padx=4
         )
 
     def _criar_area_editor(self):
@@ -153,18 +194,8 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         )
 
         area.grid_columnconfigure(
-            0,
-            weight=0
-        )
-
-        area.grid_columnconfigure(
             1,
             weight=1
-        )
-
-        area.grid_columnconfigure(
-            2,
-            weight=0
         )
 
         area.grid_rowconfigure(
@@ -208,11 +239,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         ctk.CTkLabel(
             barra,
             text="Elementos",
-            font=(
-                "Arial",
-                18,
-                "bold"
-            )
+            font=("Arial", 18, "bold")
         ).pack(
             pady=(20, 15)
         )
@@ -253,13 +280,11 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             pady=6
         )
 
-        separador = ctk.CTkFrame(
+        ctk.CTkFrame(
             barra,
             height=2,
             fg_color="gray35"
-        )
-
-        separador.pack(
+        ).pack(
             fill="x",
             padx=15,
             pady=18
@@ -268,11 +293,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         ctk.CTkLabel(
             barra,
             text="Organização",
-            font=(
-                "Arial",
-                16,
-                "bold"
-            )
+            font=("Arial", 16, "bold")
         ).pack(
             pady=(0, 10)
         )
@@ -339,11 +360,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         ctk.CTkLabel(
             painel_canvas,
             text="Área de edição — 1280 × 720",
-            font=(
-                "Arial",
-                16,
-                "bold"
-            )
+            font=("Arial", 16, "bold")
         ).grid(
             row=0,
             column=0,
@@ -441,11 +458,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         ctk.CTkLabel(
             painel,
             text="Propriedades",
-            font=(
-                "Arial",
-                18,
-                "bold"
-            )
+            font=("Arial", 18, "bold")
         ).grid(
             row=0,
             column=0,
@@ -476,11 +489,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         ctk.CTkLabel(
             painel,
             text="Camadas",
-            font=(
-                "Arial",
-                17,
-                "bold"
-            )
+            font=("Arial", 17, "bold")
         ).grid(
             row=2,
             column=0,
@@ -509,20 +518,14 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         self,
         painel
     ):
-        linha = 0
-
         self.rotulo_tipo = ctk.CTkLabel(
             painel,
             text="Nenhum elemento selecionado",
-            font=(
-                "Arial",
-                15,
-                "bold"
-            )
+            font=("Arial", 15, "bold")
         )
 
         self.rotulo_tipo.grid(
-            row=linha,
+            row=0,
             column=0,
             columnspan=2,
             sticky="w",
@@ -530,106 +533,77 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             pady=(5, 15)
         )
 
-        linha += 1
-
         self.campo_nome = self._criar_campo(
             painel,
-            linha,
+            1,
             "Nome"
         )
 
-        linha += 1
-
         self.campo_x = self._criar_campo(
             painel,
-            linha,
+            2,
             "Posição X"
         )
 
-        linha += 1
-
         self.campo_y = self._criar_campo(
             painel,
-            linha,
+            3,
             "Posição Y"
         )
 
-        linha += 1
-
         self.campo_largura = self._criar_campo(
             painel,
-            linha,
+            4,
             "Largura"
         )
 
-        linha += 1
-
         self.campo_altura = self._criar_campo(
             painel,
-            linha,
+            5,
             "Altura"
         )
 
-        linha += 1
-
-        self.rotulo_texto = ctk.CTkLabel(
+        self.campo_rotacao = self._criar_campo(
             painel,
-            text="Texto"
+            6,
+            "Rotação"
         )
 
-        self.rotulo_texto.grid(
-            row=linha,
-            column=0,
-            sticky="w",
-            padx=5,
-            pady=7
+        self.campo_opacidade = self._criar_campo(
+            painel,
+            7,
+            "Opacidade"
         )
 
-        self.campo_texto = ctk.CTkEntry(
-            painel
+        self.campo_texto = self._criar_campo(
+            painel,
+            8,
+            "Texto"
         )
-
-        self.campo_texto.grid(
-            row=linha,
-            column=1,
-            sticky="ew",
-            padx=5,
-            pady=7
-        )
-
-        linha += 1
 
         self.campo_tamanho_fonte = self._criar_campo(
             painel,
-            linha,
+            9,
             "Tamanho da fonte"
         )
 
-        linha += 1
-
         self.campo_cor = self._criar_campo(
             painel,
-            linha,
+            10,
             "Cor"
         )
 
-        linha += 1
-
         self.campo_contorno = self._criar_campo(
             painel,
-            linha,
+            11,
             "Cor do contorno"
         )
 
-        linha += 1
-
         self.campo_largura_contorno = self._criar_campo(
             painel,
-            linha,
+            12,
             "Largura contorno"
         )
-
-        linha += 1
 
         self.botao_aplicar = ctk.CTkButton(
             painel,
@@ -639,7 +613,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         )
 
         self.botao_aplicar.grid(
-            row=linha,
+            row=13,
             column=0,
             columnspan=2,
             sticky="ew",
@@ -689,97 +663,256 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             cor_fundo="#6D28B2"
         )
 
-        fundo = ShapeElement(
-            nome="Fundo",
-            x=0,
-            y=0,
-            largura=1280,
-            altura=720,
-            formato="retangulo",
-            cor="#6D28B2",
-            camada=0,
-            bloqueado=True
-        )
-
-        titulo = TextElement(
-            nome="Título",
-            x=180,
-            y=30,
-            largura=920,
-            altura=110,
-            texto="O QUE VOCÊ PREFERE?",
-            tamanho_fonte=72,
-            cor="#FFFFFF",
-            cor_contorno="#43136E",
-            largura_contorno=4,
-            sombra=True,
-            camada=1
+        documento.adicionar_elemento(
+            ShapeElement(
+                nome="Fundo",
+                x=0,
+                y=0,
+                largura=1280,
+                altura=720,
+                formato="retangulo",
+                cor="#6D28B2",
+                camada=0,
+                bloqueado=True
+            )
         )
 
         documento.adicionar_elemento(
-            fundo
-        )
-
-        documento.adicionar_elemento(
-            titulo
+            TextElement(
+                nome="Título",
+                x=180,
+                y=30,
+                largura=920,
+                altura=110,
+                texto="O QUE VOCÊ PREFERE?",
+                tamanho_fonte=72,
+                cor="#FFFFFF",
+                cor_contorno="#43136E",
+                largura_contorno=4,
+                sombra=True,
+                camada=1
+            )
         )
 
         self.canvas_editor.definir_documento(
             documento
         )
 
+        self.elemento_selecionado = None
+        self.caminho_documento_atual = None
+        self.documento_alterado = False
+
         self.atualizar_lista_camadas()
+        self._atualizar_rotulo_arquivo()
 
     def novo_documento(self):
-        confirmar = messagebox.askyesno(
-            title="Novo documento",
-            message=(
-                "Deseja criar um novo documento?\n\n"
-                "As alterações que ainda não foram salvas "
-                "serão descartadas."
-            ),
-            parent=self.winfo_toplevel()
-        )
-
-        if not confirmar:
+        if not self._confirmar_descarte():
             return
 
-        self.elemento_selecionado = None
         self.criar_documento_inicial()
 
         self.status.configure(
             text="Novo documento criado."
         )
 
-    def adicionar_texto(self):
-        documento = (
-            self.canvas_editor
-            .obter_documento()
+    def abrir_documento(self):
+        if not self._confirmar_descarte():
+            return
+
+        caminho = filedialog.askopenfilename(
+            parent=self.winfo_toplevel(),
+            title="Abrir projeto de thumbnail",
+            filetypes=[
+                (
+                    "Projeto de thumbnail",
+                    "*.json"
+                ),
+                (
+                    "Todos os arquivos",
+                    "*.*"
+                )
+            ]
         )
 
-        elemento = TextElement(
-            nome="Novo texto",
-            x=340,
-            y=280,
-            largura=600,
-            altura=110,
-            texto="NOVO TEXTO",
-            tamanho_fonte=64,
-            cor="#FFFFFF",
-            cor_contorno="#000000",
-            largura_contorno=2,
-            sombra=True,
-            camada=self._proxima_camada(
+        if not caminho:
+            return
+
+        try:
+            documento = self.document_manager.carregar(
+                caminho
+            )
+
+            self.canvas_editor.definir_documento(
                 documento
+            )
+
+            self.caminho_documento_atual = Path(
+                caminho
+            )
+
+            self.documento_alterado = False
+            self.elemento_selecionado = None
+
+            self.atualizar_lista_camadas()
+            self._atualizar_rotulo_arquivo()
+
+            self.status.configure(
+                text=f"Documento carregado: {caminho}"
+            )
+
+        except (
+            OSError,
+            ValueError
+        ) as erro:
+            messagebox.showerror(
+                title="Erro ao abrir documento",
+                message=str(erro),
+                parent=self.winfo_toplevel()
+            )
+
+    def salvar_documento(self):
+        if self.caminho_documento_atual is None:
+            self.salvar_documento_como()
+            return
+
+        self._salvar_no_caminho(
+            self.caminho_documento_atual
+        )
+
+    def salvar_documento_como(self):
+        caminho = filedialog.asksaveasfilename(
+            parent=self.winfo_toplevel(),
+            title="Salvar projeto de thumbnail",
+            defaultextension=".json",
+            filetypes=[
+                (
+                    "Projeto de thumbnail",
+                    "*.json"
+                )
+            ]
+        )
+
+        if not caminho:
+            return
+
+        self._salvar_no_caminho(
+            caminho
+        )
+
+    def _salvar_no_caminho(
+        self,
+        caminho
+    ):
+        try:
+            caminho_salvo = self.document_manager.salvar(
+                documento=(
+                    self.canvas_editor
+                    .obter_documento()
+                ),
+                caminho_arquivo=caminho
+            )
+
+            self.caminho_documento_atual = caminho_salvo
+            self.documento_alterado = False
+
+            self._atualizar_rotulo_arquivo()
+
+            self.status.configure(
+                text=f"Documento salvo: {caminho_salvo}"
+            )
+
+        except OSError as erro:
+            messagebox.showerror(
+                title="Erro ao salvar documento",
+                message=str(erro),
+                parent=self.winfo_toplevel()
+            )
+
+    def exportar_png(self):
+        self._exportar_imagem(
+            extensao=".png",
+            descricao="Imagem PNG"
+        )
+
+    def exportar_jpg(self):
+        self._exportar_imagem(
+            extensao=".jpg",
+            descricao="Imagem JPG"
+        )
+
+    def _exportar_imagem(
+        self,
+        extensao,
+        descricao
+    ):
+        caminho = filedialog.asksaveasfilename(
+            parent=self.winfo_toplevel(),
+            title="Exportar thumbnail",
+            defaultextension=extensao,
+            filetypes=[
+                (
+                    descricao,
+                    f"*{extensao}"
+                )
+            ]
+        )
+
+        if not caminho:
+            return
+
+        try:
+            caminho_exportado = self.document_renderer.salvar(
+                documento=(
+                    self.canvas_editor
+                    .obter_documento()
+                ),
+                caminho_saida=caminho
+            )
+
+            self.status.configure(
+                text=f"Thumbnail exportada: {caminho_exportado}"
+            )
+
+            messagebox.showinfo(
+                title="Thumbnail exportada",
+                message=(
+                    "A thumbnail foi exportada com sucesso.\n\n"
+                    f"{caminho_exportado}"
+                ),
+                parent=self.winfo_toplevel()
+            )
+
+        except OSError as erro:
+            messagebox.showerror(
+                title="Erro ao exportar",
+                message=str(erro),
+                parent=self.winfo_toplevel()
+            )
+
+    def adicionar_texto(self):
+        documento = self.canvas_editor.obter_documento()
+
+        self.canvas_editor.adicionar_elemento(
+            TextElement(
+                nome="Novo texto",
+                x=340,
+                y=280,
+                largura=600,
+                altura=110,
+                texto="NOVO TEXTO",
+                tamanho_fonte=64,
+                cor="#FFFFFF",
+                cor_contorno="#000000",
+                largura_contorno=2,
+                sombra=True,
+                camada=self._proxima_camada(
+                    documento
+                )
             )
         )
 
-        self.canvas_editor.adicionar_elemento(
-            elemento
-        )
-
-        self.status.configure(
-            text="Novo texto adicionado."
+        self._marcar_alterado(
+            "Novo texto adicionado."
         )
 
     def adicionar_imagem(self):
@@ -801,95 +934,74 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         if not caminho:
             return
 
-        documento = (
-            self.canvas_editor
-            .obter_documento()
-        )
+        documento = self.canvas_editor.obter_documento()
 
-        elemento = ImageElement(
-            nome=Path(
-                caminho
-            ).stem,
-            x=390,
-            y=180,
-            largura=500,
-            altura=350,
-            caminho=str(
-                Path(
-                    caminho
+        self.canvas_editor.adicionar_elemento(
+            ImageElement(
+                nome=Path(caminho).stem,
+                x=390,
+                y=180,
+                largura=500,
+                altura=350,
+                caminho=str(Path(caminho)),
+                preencher_area=False,
+                sombra=True,
+                camada=self._proxima_camada(
+                    documento
                 )
-            ),
-            preencher_area=False,
-            sombra=True,
-            camada=self._proxima_camada(
-                documento
             )
         )
 
-        self.canvas_editor.adicionar_elemento(
-            elemento
-        )
-
-        self.status.configure(
-            text=f"Imagem adicionada: {caminho}"
+        self._marcar_alterado(
+            f"Imagem adicionada: {caminho}"
         )
 
     def adicionar_retangulo(self):
-        documento = (
-            self.canvas_editor
-            .obter_documento()
-        )
+        documento = self.canvas_editor.obter_documento()
 
-        elemento = ShapeElement(
-            nome="Retângulo",
-            x=390,
-            y=250,
-            largura=500,
-            altura=240,
-            formato="retangulo",
-            cor="#FF8A1F",
-            cor_contorno="#FFFFFF",
-            largura_contorno=4,
-            camada=self._proxima_camada(
-                documento
+        self.canvas_editor.adicionar_elemento(
+            ShapeElement(
+                nome="Retângulo",
+                x=390,
+                y=250,
+                largura=500,
+                altura=240,
+                formato="retangulo",
+                cor="#FF8A1F",
+                cor_contorno="#FFFFFF",
+                largura_contorno=4,
+                camada=self._proxima_camada(
+                    documento
+                )
             )
         )
 
-        self.canvas_editor.adicionar_elemento(
-            elemento
-        )
-
-        self.status.configure(
-            text="Retângulo adicionado."
+        self._marcar_alterado(
+            "Retângulo adicionado."
         )
 
     def adicionar_circulo(self):
-        documento = (
-            self.canvas_editor
-            .obter_documento()
-        )
+        documento = self.canvas_editor.obter_documento()
 
-        elemento = ShapeElement(
-            nome="Círculo",
-            x=540,
-            y=260,
-            largura=200,
-            altura=200,
-            formato="circulo",
-            cor="#FF8A1F",
-            cor_contorno="#FFFFFF",
-            largura_contorno=6,
-            camada=self._proxima_camada(
-                documento
+        self.canvas_editor.adicionar_elemento(
+            ShapeElement(
+                nome="Círculo",
+                x=540,
+                y=260,
+                largura=200,
+                altura=200,
+                formato="circulo",
+                cor="#FF8A1F",
+                cor_contorno="#FFFFFF",
+                largura_contorno=6,
+                camada=self._proxima_camada(
+                    documento
+                )
             )
         )
 
-        self.canvas_editor.adicionar_elemento(
-            elemento
-        )
-
-        self.status.configure(
-            text="Círculo adicionado."
+        self._marcar_alterado(
+            "Círculo adicionado."
         )
 
     def ao_selecionar_elemento(
@@ -911,10 +1023,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             return
 
         self.rotulo_tipo.configure(
-            text=(
-                f"{elemento.nome} "
-                f"({elemento.tipo})"
-            )
+            text=f"{elemento.nome} ({elemento.tipo})"
         )
 
         self._definir_estado_campos(
@@ -929,12 +1038,12 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         self,
         documento
     ):
-        self.atualizar_lista_camadas()
+        self.documento_alterado = True
 
-        elemento = (
-            self.canvas_editor
-            .obter_elemento_selecionado()
-        )
+        self.atualizar_lista_camadas()
+        self._atualizar_rotulo_arquivo()
+
+        elemento = self.canvas_editor.obter_elemento_selecionado()
 
         if elemento is not None:
             self._preencher_propriedades(
@@ -948,97 +1057,62 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             self.status.configure(
                 text="Selecione um elemento primeiro."
             )
-
             return
 
         if elemento.bloqueado:
             self.status.configure(
-                text=(
-                    "Este elemento está bloqueado "
-                    "e não pode ser alterado."
-                )
+                text="Este elemento está bloqueado."
             )
-
             return
 
         try:
-            nome = (
-                self.campo_nome
-                .get()
-                .strip()
-            )
-
-            x = float(
-                self.campo_x.get()
-            )
-
-            y = float(
-                self.campo_y.get()
-            )
-
-            largura = float(
-                self.campo_largura.get()
-            )
-
-            altura = float(
-                self.campo_altura.get()
-            )
-
-            if largura < 1 or altura < 1:
-                raise ValueError(
-                    "Largura e altura devem ser maiores que zero."
-                )
-
             elemento.nome = (
-                nome
+                self.campo_nome.get().strip()
                 or elemento.nome
             )
 
             elemento.mover(
-                x,
-                y
+                float(self.campo_x.get()),
+                float(self.campo_y.get())
             )
 
             elemento.redimensionar(
-                largura,
-                altura
+                float(self.campo_largura.get()),
+                float(self.campo_altura.get())
+            )
+
+            elemento.definir_rotacao(
+                float(self.campo_rotacao.get())
+            )
+
+            elemento.definir_opacidade(
+                int(self.campo_opacidade.get())
             )
 
             if isinstance(
                 elemento,
                 TextElement
             ):
-                elemento.texto = (
-                    self.campo_texto
-                    .get()
-                )
+                elemento.texto = self.campo_texto.get()
 
                 elemento.tamanho_fonte = max(
-                    int(
-                        self.campo_tamanho_fonte
-                        .get()
-                    ),
+                    int(self.campo_tamanho_fonte.get()),
                     1
                 )
 
                 elemento.cor = (
-                    self.campo_cor
-                    .get()
-                    .strip()
+                    self.campo_cor.get().strip()
                     or elemento.cor
                 )
 
                 elemento.cor_contorno = (
-                    self.campo_contorno
-                    .get()
-                    .strip()
+                    self.campo_contorno.get().strip()
                     or elemento.cor_contorno
                 )
 
                 elemento.largura_contorno = max(
                     int(
-                        self.campo_largura_contorno
-                        .get()
+                        self.campo_largura_contorno.get()
                     ),
                     0
                 )
@@ -1048,23 +1122,18 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 ShapeElement
             ):
                 elemento.cor = (
-                    self.campo_cor
-                    .get()
-                    .strip()
+                    self.campo_cor.get().strip()
                     or elemento.cor
                 )
 
                 elemento.cor_contorno = (
-                    self.campo_contorno
-                    .get()
-                    .strip()
+                    self.campo_contorno.get().strip()
                     or elemento.cor_contorno
                 )
 
                 elemento.largura_contorno = max(
                     int(
-                        self.campo_largura_contorno
-                        .get()
+                        self.campo_largura_contorno.get()
                     ),
                     0
                 )
@@ -1076,12 +1145,8 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             self.canvas_editor.renderizar()
             self.atualizar_lista_camadas()
 
-            self.rotulo_tipo.configure(
-                text=(
-                    f"{elemento.nome} "
-                    f"({elemento.tipo})"
-                )
-            )
+            self.documento_alterado = True
+            self._atualizar_rotulo_arquivo()
 
             self.status.configure(
                 text="Propriedades aplicadas."
@@ -1090,9 +1155,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         except ValueError as erro:
             messagebox.showerror(
                 title="Valor inválido",
-                message=str(
-                    erro
-                ),
+                message=str(erro),
                 parent=self.winfo_toplevel()
             )
 
@@ -1103,42 +1166,28 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             self.status.configure(
                 text="Selecione um elemento primeiro."
             )
-
             return
 
         if elemento.bloqueado:
             self.status.configure(
-                text=(
-                    "Este elemento está bloqueado "
-                    "e não pode ser excluído."
-                )
+                text="Este elemento está bloqueado."
             )
-
             return
 
         confirmar = messagebox.askyesno(
             title="Excluir elemento",
-            message=(
-                f"Deseja excluir o elemento "
-                f"'{elemento.nome}'?"
-            ),
+            message=f"Deseja excluir '{elemento.nome}'?",
             parent=self.winfo_toplevel()
         )
 
         if not confirmar:
             return
 
-        removido = (
-            self.canvas_editor
-            .remover_elemento_selecionado()
-        )
-
-        if removido:
+        if self.canvas_editor.remover_elemento_selecionado():
             self.elemento_selecionado = None
-            self.atualizar_lista_camadas()
 
-            self.status.configure(
-                text="Elemento excluído."
+            self._marcar_alterado(
+                "Elemento excluído."
             )
 
     def trazer_para_frente(self):
@@ -1146,14 +1195,12 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             self.status.configure(
                 text="Selecione um elemento primeiro."
             )
-
             return
 
         self.canvas_editor.trazer_selecionado_para_frente()
-        self.atualizar_lista_camadas()
 
-        self.status.configure(
-            text="Elemento trazido para frente."
+        self._marcar_alterado(
+            "Elemento trazido para frente."
         )
 
     def enviar_para_tras(self):
@@ -1161,35 +1208,19 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             self.status.configure(
                 text="Selecione um elemento primeiro."
             )
-
             return
 
         self.canvas_editor.enviar_selecionado_para_tras()
-        self.atualizar_lista_camadas()
 
-        self.status.configure(
-            text="Elemento enviado para trás."
-        )
-
-    def atualizar_canvas(self):
-        self.canvas_editor.renderizar()
-        self.atualizar_lista_camadas()
-
-        self.status.configure(
-            text="Canvas atualizado."
+        self._marcar_alterado(
+            "Elemento enviado para trás."
         )
 
     def atualizar_lista_camadas(self):
-        for widget in (
-            self.lista_camadas
-            .winfo_children()
-        ):
+        for widget in self.lista_camadas.winfo_children():
             widget.destroy()
 
-        documento = (
-            self.canvas_editor
-            .obter_documento()
-        )
+        documento = self.canvas_editor.obter_documento()
 
         elementos = sorted(
             documento.elementos,
@@ -1197,21 +1228,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             reverse=True
         )
 
-        if not elementos:
-            ctk.CTkLabel(
-                self.lista_camadas,
-                text="Nenhuma camada."
-            ).grid(
-                row=0,
-                column=0,
-                pady=10
-            )
-
-            return
-
-        for indice, elemento in enumerate(
-            elementos
-        ):
+        for indice, elemento in enumerate(elementos):
             texto = (
                 f"{elemento.nome}\n"
                 f"{elemento.tipo} • camada {elemento.camada}"
@@ -1236,8 +1253,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 ),
                 hover_color="gray25",
                 command=lambda elemento_id=elemento.id: (
-                    self.canvas_editor
-                    .selecionar_elemento(
+                    self.canvas_editor.selecionar_elemento(
                         elemento_id
                     )
                 )
@@ -1255,44 +1271,42 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         self,
         elemento
     ):
-        self.atualizando_propriedades = True
-
-        self._definir_campo(
-            self.campo_nome,
-            elemento.nome
-        )
-
-        self._definir_campo(
-            self.campo_x,
-            round(
-                elemento.x,
-                1
+        valores = [
+            (
+                self.campo_nome,
+                elemento.nome
+            ),
+            (
+                self.campo_x,
+                round(elemento.x, 1)
+            ),
+            (
+                self.campo_y,
+                round(elemento.y, 1)
+            ),
+            (
+                self.campo_largura,
+                round(elemento.largura, 1)
+            ),
+            (
+                self.campo_altura,
+                round(elemento.altura, 1)
+            ),
+            (
+                self.campo_rotacao,
+                round(elemento.rotacao, 1)
+            ),
+            (
+                self.campo_opacidade,
+                elemento.opacidade
             )
-        )
+        ]
 
-        self._definir_campo(
-            self.campo_y,
-            round(
-                elemento.y,
-                1
+        for campo, valor in valores:
+            self._definir_campo(
+                campo,
+                valor
             )
-        )
-
-        self._definir_campo(
-            self.campo_largura,
-            round(
-                elemento.largura,
-                1
-            )
-        )
-
-        self._definir_campo(
-            self.campo_altura,
-            round(
-                elemento.altura,
-                1
-            )
-        )
 
         if isinstance(
             elemento,
@@ -1323,7 +1337,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 elemento.largura_contorno
             )
 
-            self._definir_estado_campos_texto(
+            self._definir_estado_visual(
                 "normal"
             )
 
@@ -1390,7 +1404,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 ""
             )
 
-            self._definir_estado_campos_visuais(
+            self._definir_estado_visual(
                 "disabled"
             )
 
@@ -1399,26 +1413,11 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 "disabled"
             )
 
-        self.atualizando_propriedades = False
-
     def _definir_estado_campos(
         self,
         estado
     ):
-        campos = [
-            self.campo_nome,
-            self.campo_x,
-            self.campo_y,
-            self.campo_largura,
-            self.campo_altura,
-            self.campo_texto,
-            self.campo_tamanho_fonte,
-            self.campo_cor,
-            self.campo_contorno,
-            self.campo_largura_contorno
-        ]
-
-        for campo in campos:
+        for campo in self._todos_campos():
             campo.configure(
                 state=estado
             )
@@ -1427,61 +1426,30 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             state=estado
         )
 
-    def _definir_estado_campos_texto(
+    def _definir_estado_visual(
         self,
         estado
     ):
-        self.campo_texto.configure(
-            state=estado
-        )
+        for campo in [
+            self.campo_texto,
+            self.campo_tamanho_fonte,
+            self.campo_cor,
+            self.campo_contorno,
+            self.campo_largura_contorno
+        ]:
+            campo.configure(
+                state=estado
+            )
 
-        self.campo_tamanho_fonte.configure(
-            state=estado
-        )
-
-        self.campo_cor.configure(
-            state=estado
-        )
-
-        self.campo_contorno.configure(
-            state=estado
-        )
-
-        self.campo_largura_contorno.configure(
-            state=estado
-        )
-
-    def _definir_estado_campos_visuais(
-        self,
-        estado
-    ):
-        self.campo_texto.configure(
-            state=estado
-        )
-
-        self.campo_tamanho_fonte.configure(
-            state=estado
-        )
-
-        self.campo_cor.configure(
-            state=estado
-        )
-
-        self.campo_contorno.configure(
-            state=estado
-        )
-
-        self.campo_largura_contorno.configure(
-            state=estado
-        )
-
-    def _limpar_campos(self):
-        campos = [
+    def _todos_campos(self):
+        return [
             self.campo_nome,
             self.campo_x,
             self.campo_y,
             self.campo_largura,
             self.campo_altura,
+            self.campo_rotacao,
+            self.campo_opacidade,
             self.campo_texto,
             self.campo_tamanho_fonte,
             self.campo_cor,
@@ -1489,7 +1457,8 @@ class ThumbnailEditorPage(ctk.CTkFrame):
             self.campo_largura_contorno
         ]
 
-        for campo in campos:
+    def _limpar_campos(self):
+        for campo in self._todos_campos():
             campo.configure(
                 state="normal"
             )
@@ -1519,9 +1488,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
 
         campo.insert(
             0,
-            str(
-                valor
-            )
+            str(valor)
         )
 
         campo.configure(
@@ -1532,16 +1499,12 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         self,
         elemento
     ):
-        documento = (
-            self.canvas_editor
-            .obter_documento()
-        )
+        documento = self.canvas_editor.obter_documento()
 
         elemento.x = max(
             min(
                 elemento.x,
-                documento.largura
-                - elemento.largura
+                documento.largura - elemento.largura
             ),
             0
         )
@@ -1549,8 +1512,7 @@ class ThumbnailEditorPage(ctk.CTkFrame):
         elemento.y = max(
             min(
                 elemento.y,
-                documento.altura
-                - elemento.altura
+                documento.altura - elemento.altura
             ),
             0
         )
@@ -1568,4 +1530,43 @@ class ThumbnailEditorPage(ctk.CTkFrame):
                 for elemento in documento.elementos
             )
             + 1
+        )
+
+    def _marcar_alterado(
+        self,
+        mensagem
+    ):
+        self.documento_alterado = True
+
+        self.atualizar_lista_camadas()
+        self._atualizar_rotulo_arquivo()
+
+        self.status.configure(
+            text=mensagem
+        )
+
+    def _atualizar_rotulo_arquivo(self):
+        if self.caminho_documento_atual:
+            texto = self.caminho_documento_atual.name
+        else:
+            texto = "Novo documento"
+
+        if self.documento_alterado:
+            texto += " *"
+
+        self.rotulo_arquivo.configure(
+            text=texto
+        )
+
+    def _confirmar_descarte(self):
+        if not self.documento_alterado:
+            return True
+
+        return messagebox.askyesno(
+            title="Alterações não salvas",
+            message=(
+                "Existem alterações que ainda não foram salvas.\n\n"
+                "Deseja descartá-las?"
+            ),
+            parent=self.winfo_toplevel()
         )

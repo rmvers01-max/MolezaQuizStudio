@@ -1,13 +1,7 @@
-from pathlib import Path
 from typing import Callable, Optional
 
 import customtkinter as ctk
-from PIL import (
-    Image,
-    ImageDraw,
-    ImageFont,
-    ImageOps
-)
+from PIL import Image, ImageOps, ImageTk, UnidentifiedImageError
 
 from core.thumbnail_elements import (
     ImageElement,
@@ -20,15 +14,15 @@ from core.thumbnail_elements import (
 
 class ThumbnailCanvas(ctk.CTkFrame):
     """
-    Canvas visual inicial para edição de thumbnails.
+    Canvas visual para edição de thumbnails.
 
-    Recursos desta primeira versão:
+    Recursos:
     - renderização dos elementos;
     - seleção por clique;
-    - arrastar elementos;
+    - movimentação com o mouse;
     - indicação visual da seleção;
     - conversão entre coordenadas do editor e 1280 × 720;
-    - atualização do documento em memória.
+    - cache correto de imagens usando ImageTk.PhotoImage.
     """
 
     LARGURA_DOCUMENTO = 1280
@@ -51,12 +45,14 @@ class ThumbnailCanvas(ctk.CTkFrame):
             fg_color="transparent"
         )
 
-        self.largura_preview = int(
-            largura_preview
+        self.largura_preview = max(
+            int(largura_preview),
+            1
         )
 
-        self.altura_preview = int(
-            altura_preview
+        self.altura_preview = max(
+            int(altura_preview),
+            1
         )
 
         self.ao_selecionar = ao_selecionar
@@ -73,14 +69,23 @@ class ThumbnailCanvas(ctk.CTkFrame):
         self.ultimo_x_documento = 0.0
         self.ultimo_y_documento = 0.0
 
+        self.escala_atual = 1.0
+        self.origem_x = 0.0
+        self.origem_y = 0.0
+
+        # Guarda referências de ImageTk.PhotoImage.
+        # Sem essas referências, o Tkinter pode remover as imagens.
         self.imagens_cache = {}
 
-        self._criar_interface()
-        self.renderizar()
+        self._renderizacao_agendada = None
 
-    def _criar_interface(
-        self
-    ):
+        self._criar_interface()
+
+        self.after_idle(
+            self.renderizar
+        )
+
+    def _criar_interface(self):
         self.grid_columnconfigure(
             0,
             weight=1
@@ -127,15 +132,23 @@ class ThumbnailCanvas(ctk.CTkFrame):
             self._ao_redimensionar_canvas
         )
 
+    # =========================================================
+    # DOCUMENTO E ELEMENTOS
+    # =========================================================
+
     def definir_documento(
         self,
         documento: ThumbnailDocument
     ):
         self.documento = documento
+
         self.elemento_selecionado_id = None
+        self.arrastando = False
+
         self.imagens_cache.clear()
 
         self.renderizar()
+
         self._notificar_selecao(
             None
         )
@@ -153,11 +166,14 @@ class ThumbnailCanvas(ctk.CTkFrame):
             elemento
         )
 
-        self.selecionar_elemento(
-            elemento.id
-        )
+        self.elemento_selecionado_id = elemento.id
 
         self.renderizar()
+
+        self._notificar_selecao(
+            elemento
+        )
+
         self._notificar_alteracao()
 
     def remover_elemento_selecionado(
@@ -170,15 +186,21 @@ class ThumbnailCanvas(ctk.CTkFrame):
             self.elemento_selecionado_id
         )
 
-        if removido:
-            self.elemento_selecionado_id = None
-            self.renderizar()
-            self._notificar_selecao(
-                None
-            )
-            self._notificar_alteracao()
+        if not removido:
+            return False
 
-        return removido
+        self.elemento_selecionado_id = None
+        self.arrastando = False
+
+        self.renderizar()
+
+        self._notificar_selecao(
+            None
+        )
+
+        self._notificar_alteracao()
+
+        return True
 
     def selecionar_elemento(
         self,
@@ -194,6 +216,7 @@ class ThumbnailCanvas(ctk.CTkFrame):
             )
 
         self.renderizar()
+
         self._notificar_selecao(
             elemento
         )
@@ -234,37 +257,54 @@ class ThumbnailCanvas(ctk.CTkFrame):
         self.renderizar()
         self._notificar_alteracao()
 
-    def renderizar(
-        self
-    ):
+    # =========================================================
+    # RENDERIZAÇÃO
+    # =========================================================
+
+    def renderizar(self):
+        if not self.winfo_exists():
+            return
+
         self.canvas.delete(
             "all"
         )
 
-        largura_canvas = max(
-            self.canvas.winfo_width(),
-            self.largura_preview
+        largura_canvas = self.canvas.winfo_width()
+        altura_canvas = self.canvas.winfo_height()
+
+        if largura_canvas <= 1:
+            largura_canvas = self.largura_preview
+
+        if altura_canvas <= 1:
+            altura_canvas = self.altura_preview
+
+        largura_documento = max(
+            int(self.documento.largura),
+            1
         )
 
-        altura_canvas = max(
-            self.canvas.winfo_height(),
-            self.altura_preview
+        altura_documento = max(
+            int(self.documento.altura),
+            1
         )
 
         escala = min(
-            largura_canvas
-            / self.documento.largura,
-            altura_canvas
-            / self.documento.altura
+            largura_canvas / largura_documento,
+            altura_canvas / altura_documento
+        )
+
+        escala = max(
+            escala,
+            0.0001
         )
 
         largura_render = (
-            self.documento.largura
+            largura_documento
             * escala
         )
 
         altura_render = (
-            self.documento.altura
+            altura_documento
             * escala
         )
 
@@ -289,7 +329,8 @@ class ThumbnailCanvas(ctk.CTkFrame):
             origem_y + altura_render,
             fill=self.documento.cor_fundo,
             outline="#555555",
-            width=1
+            width=1,
+            tags=("area_documento",)
         )
 
         elementos = sorted(
@@ -301,9 +342,20 @@ class ThumbnailCanvas(ctk.CTkFrame):
             if not elemento.visivel:
                 continue
 
-            self._renderizar_elemento(
-                elemento
-            )
+            try:
+                self._renderizar_elemento(
+                    elemento
+                )
+
+            except (
+                OSError,
+                ValueError,
+                TypeError,
+                UnidentifiedImageError
+            ):
+                self._renderizar_erro_elemento(
+                    elemento
+                )
 
         elemento_selecionado = (
             self.obter_elemento_selecionado()
@@ -356,6 +408,14 @@ class ThumbnailCanvas(ctk.CTkFrame):
             elemento.y + elemento.altura
         )
 
+        largura_contorno = max(
+            int(
+                elemento.largura_contorno
+                * self.escala_atual
+            ),
+            0
+        )
+
         if elemento.formato == "circulo":
             self.canvas.create_oval(
                 x1,
@@ -363,13 +423,15 @@ class ThumbnailCanvas(ctk.CTkFrame):
                 x2,
                 y2,
                 fill=elemento.cor,
-                outline=elemento.cor_contorno,
-                width=max(
-                    int(
-                        elemento.largura_contorno
-                        * self.escala_atual
-                    ),
-                    0
+                outline=(
+                    elemento.cor_contorno
+                    if largura_contorno > 0
+                    else ""
+                ),
+                width=largura_contorno,
+                tags=(
+                    "elemento",
+                    elemento.id
                 )
             )
 
@@ -380,13 +442,15 @@ class ThumbnailCanvas(ctk.CTkFrame):
                 x2,
                 y2,
                 fill=elemento.cor,
-                outline=elemento.cor_contorno,
-                width=max(
-                    int(
-                        elemento.largura_contorno
-                        * self.escala_atual
-                    ),
-                    0
+                outline=(
+                    elemento.cor_contorno
+                    if largura_contorno > 0
+                    else ""
+                ),
+                width=largura_contorno,
+                tags=(
+                    "elemento",
+                    elemento.id
                 )
             )
 
@@ -412,7 +476,11 @@ class ThumbnailCanvas(ctk.CTkFrame):
             8
         )
 
-        estilo = "bold" if elemento.negrito else "normal"
+        estilo = (
+            "bold"
+            if elemento.negrito
+            else "normal"
+        )
 
         fonte = (
             elemento.fonte,
@@ -437,6 +505,11 @@ class ThumbnailCanvas(ctk.CTkFrame):
             y1 + y2
         ) / 2
 
+        largura_texto = max(
+            int(x2 - x1),
+            1
+        )
+
         if elemento.sombra:
             self.canvas.create_text(
                 posicao_x
@@ -449,9 +522,10 @@ class ThumbnailCanvas(ctk.CTkFrame):
                 fill=elemento.cor_sombra,
                 font=fonte,
                 anchor=ancora,
-                width=max(
-                    x2 - x1,
-                    1
+                width=largura_texto,
+                tags=(
+                    "elemento",
+                    elemento.id
                 )
             )
 
@@ -462,9 +536,10 @@ class ThumbnailCanvas(ctk.CTkFrame):
             fill=elemento.cor,
             font=fonte,
             anchor=ancora,
-            width=max(
-                x2 - x1,
-                1
+            width=largura_texto,
+            tags=(
+                "elemento",
+                elemento.id
             )
         )
 
@@ -484,51 +559,43 @@ class ThumbnailCanvas(ctk.CTkFrame):
             elemento.y + elemento.altura
         )
 
-        largura = max(
-            int(
-                x2 - x1
-            ),
+        largura_area = max(
+            int(round(x2 - x1)),
             1
         )
 
-        altura = max(
-            int(
-                y2 - y1
-            ),
+        altura_area = max(
+            int(round(y2 - y1)),
             1
         )
 
         if caminho is None:
-            self.canvas.create_rectangle(
-                x1,
-                y1,
-                x2,
-                y2,
-                fill="#252B35",
-                outline="#777777",
-                width=1
-            )
-
-            self.canvas.create_text(
-                (
-                    x1 + x2
-                ) / 2,
-                (
-                    y1 + y2
-                ) / 2,
-                text="Imagem não encontrada",
-                fill="#CCCCCC"
+            self._renderizar_placeholder_imagem(
+                elemento=elemento,
+                x1=x1,
+                y1=y1,
+                x2=x2,
+                y2=y2,
+                texto="Imagem não encontrada"
             )
 
             return
 
+        try:
+            data_modificacao = caminho.stat().st_mtime_ns
+
+        except OSError:
+            data_modificacao = 0
+
         chave_cache = (
-            str(
-                caminho
-            ),
-            largura,
-            altura,
-            elemento.preencher_area
+            elemento.id,
+            str(caminho.resolve()),
+            data_modificacao,
+            largura_area,
+            altura_area,
+            bool(elemento.preencher_area),
+            bool(elemento.preservar_proporcao),
+            int(elemento.opacidade)
         )
 
         imagem_tk = self.imagens_cache.get(
@@ -540,44 +607,104 @@ class ThumbnailCanvas(ctk.CTkFrame):
                 with Image.open(
                     caminho
                 ) as imagem_original:
-                    imagem = imagem_original.convert(
-                        "RGBA"
+                    imagem = (
+                        imagem_original
+                        .convert("RGBA")
+                        .copy()
                     )
 
-                    if elemento.preencher_area:
-                        imagem = ImageOps.fit(
-                            imagem,
-                            (
-                                largura,
-                                altura
-                            ),
-                            method=Image.Resampling.LANCZOS
-                        )
+            except (
+                OSError,
+                ValueError,
+                UnidentifiedImageError
+            ):
+                self._renderizar_placeholder_imagem(
+                    elemento=elemento,
+                    x1=x1,
+                    y1=y1,
+                    x2=x2,
+                    y2=y2,
+                    texto="Não foi possível abrir a imagem"
+                )
 
-                    else:
-                        imagem.thumbnail(
-                            (
-                                largura,
-                                altura
-                            ),
-                            Image.Resampling.LANCZOS
-                        )
+                return
 
-                imagem_tk = ctk.CTkImage(
-                    light_image=imagem,
-                    dark_image=imagem,
-                    size=(
-                        imagem.width,
-                        imagem.height
+            if elemento.preencher_area:
+                imagem = ImageOps.fit(
+                    imagem,
+                    (
+                        largura_area,
+                        altura_area
+                    ),
+                    method=Image.Resampling.LANCZOS,
+                    centering=(
+                        0.5,
+                        0.5
                     )
                 )
 
-                self.imagens_cache[
-                    chave_cache
-                ] = imagem_tk
+            elif elemento.preservar_proporcao:
+                imagem.thumbnail(
+                    (
+                        largura_area,
+                        altura_area
+                    ),
+                    Image.Resampling.LANCZOS
+                )
 
-            except OSError:
+            else:
+                imagem = imagem.resize(
+                    (
+                        largura_area,
+                        altura_area
+                    ),
+                    Image.Resampling.LANCZOS
+                )
+
+            if imagem.width < 1 or imagem.height < 1:
                 return
+
+            if elemento.opacidade < 255:
+                opacidade = max(
+                    min(
+                        int(elemento.opacidade),
+                        255
+                    ),
+                    0
+                )
+
+                canal_alpha = imagem.getchannel(
+                    "A"
+                )
+
+                canal_alpha = canal_alpha.point(
+                    lambda valor: int(
+                        valor
+                        * (
+                            opacidade
+                            / 255
+                        )
+                    )
+                )
+
+                imagem.putalpha(
+                    canal_alpha
+                )
+
+            # O Canvas do Tkinter exige ImageTk.PhotoImage.
+            imagem_tk = ImageTk.PhotoImage(
+                imagem,
+                master=self.canvas
+            )
+
+            self.imagens_cache[
+                chave_cache
+            ] = imagem_tk
+
+            self._limpar_cache_antigo(
+                elemento.id,
+                chave_cache
+            )
 
         self.canvas.create_image(
             (
@@ -587,8 +714,122 @@ class ThumbnailCanvas(ctk.CTkFrame):
                 y1 + y2
             ) / 2,
             image=imagem_tk,
-            anchor="center"
+            anchor="center",
+            tags=(
+                "elemento",
+                elemento.id
+            )
         )
+
+    def _renderizar_placeholder_imagem(
+        self,
+        elemento,
+        x1,
+        y1,
+        x2,
+        y2,
+        texto
+    ):
+        self.canvas.create_rectangle(
+            x1,
+            y1,
+            x2,
+            y2,
+            fill="#252B35",
+            outline="#777777",
+            width=1,
+            tags=(
+                "elemento",
+                elemento.id
+            )
+        )
+
+        self.canvas.create_text(
+            (
+                x1 + x2
+            ) / 2,
+            (
+                y1 + y2
+            ) / 2,
+            text=texto,
+            fill="#CCCCCC",
+            width=max(
+                int(x2 - x1 - 20),
+                1
+            ),
+            justify="center",
+            tags=(
+                "elemento",
+                elemento.id
+            )
+        )
+
+    def _renderizar_erro_elemento(
+        self,
+        elemento
+    ):
+        x1, y1 = self._documento_para_canvas(
+            elemento.x,
+            elemento.y
+        )
+
+        x2, y2 = self._documento_para_canvas(
+            elemento.x + elemento.largura,
+            elemento.y + elemento.altura
+        )
+
+        self.canvas.create_rectangle(
+            x1,
+            y1,
+            x2,
+            y2,
+            fill="#3B2023",
+            outline="#E65353",
+            width=2,
+            tags=(
+                "elemento",
+                elemento.id
+            )
+        )
+
+        self.canvas.create_text(
+            (
+                x1 + x2
+            ) / 2,
+            (
+                y1 + y2
+            ) / 2,
+            text="Erro ao renderizar elemento",
+            fill="#FFFFFF",
+            width=max(
+                int(x2 - x1 - 20),
+                1
+            ),
+            tags=(
+                "elemento",
+                elemento.id
+            )
+        )
+
+    def _limpar_cache_antigo(
+        self,
+        elemento_id,
+        chave_atual
+    ):
+        chaves_antigas = [
+            chave
+            for chave in self.imagens_cache
+            if (
+                chave[0] == elemento_id
+                and chave != chave_atual
+            )
+        ]
+
+        for chave in chaves_antigas:
+            self.imagens_cache.pop(
+                chave,
+                None
+            )
 
     def _renderizar_selecao(
         self,
@@ -614,7 +855,8 @@ class ThumbnailCanvas(ctk.CTkFrame):
             dash=(
                 6,
                 4
-            )
+            ),
+            tags=("selecao",)
         )
 
         tamanho_alca = 8
@@ -646,8 +888,23 @@ class ThumbnailCanvas(ctk.CTkFrame):
                 ponto_y + tamanho_alca / 2,
                 fill="#FFFFFF",
                 outline="#36A9FF",
-                width=2
+                width=2,
+                tags=("selecao",)
             )
+
+        if elemento.bloqueado:
+            self.canvas.create_text(
+                x1 + 8,
+                y1 + 8,
+                text="🔒",
+                anchor="nw",
+                fill="#FFFFFF",
+                tags=("selecao",)
+            )
+
+    # =========================================================
+    # MOUSE
+    # =========================================================
 
     def _ao_clicar(
         self,
@@ -659,6 +916,17 @@ class ThumbnailCanvas(ctk.CTkFrame):
                 evento.y
             )
         )
+
+        if not self._ponto_dentro_documento(
+            documento_x,
+            documento_y
+        ):
+            self.selecionar_elemento(
+                None
+            )
+
+            self.arrastando = False
+            return
 
         elemento = (
             self.documento
@@ -685,6 +953,7 @@ class ThumbnailCanvas(ctk.CTkFrame):
             return
 
         self.arrastando = True
+
         self.ultimo_x_documento = documento_x
         self.ultimo_y_documento = documento_y
 
@@ -699,7 +968,8 @@ class ThumbnailCanvas(ctk.CTkFrame):
             self.obter_elemento_selecionado()
         )
 
-        if elemento is None:
+        if elemento is None or elemento.bloqueado:
+            self.arrastando = False
             return
 
         documento_x, documento_y = (
@@ -746,19 +1016,50 @@ class ThumbnailCanvas(ctk.CTkFrame):
         self,
         evento
     ):
-        self.after_idle(
-            self.renderizar
+        if self._renderizacao_agendada is not None:
+            try:
+                self.after_cancel(
+                    self._renderizacao_agendada
+                )
+
+            except ValueError:
+                pass
+
+        self._renderizacao_agendada = self.after(
+            40,
+            self._renderizar_apos_redimensionamento
         )
+
+    def _renderizar_apos_redimensionamento(
+        self
+    ):
+        self._renderizacao_agendada = None
+        self.renderizar()
+
+    # =========================================================
+    # CONVERSÕES E LIMITES
+    # =========================================================
 
     def _limitar_elemento_ao_documento(
         self,
         elemento: ThumbnailElement
     ):
+        largura_maxima = max(
+            self.documento.largura
+            - elemento.largura,
+            0
+        )
+
+        altura_maxima = max(
+            self.documento.altura
+            - elemento.altura,
+            0
+        )
+
         elemento.x = max(
             min(
                 elemento.x,
-                self.documento.largura
-                - elemento.largura
+                largura_maxima
             ),
             0
         )
@@ -766,8 +1067,7 @@ class ThumbnailCanvas(ctk.CTkFrame):
         elemento.y = max(
             min(
                 elemento.y,
-                self.documento.altura
-                - elemento.altura
+                altura_maxima
             ),
             0
         )
@@ -808,6 +1108,20 @@ class ThumbnailCanvas(ctk.CTkFrame):
             )
             / escala
         )
+
+    def _ponto_dentro_documento(
+        self,
+        x,
+        y
+    ):
+        return (
+            0 <= x <= self.documento.largura
+            and 0 <= y <= self.documento.altura
+        )
+
+    # =========================================================
+    # NOTIFICAÇÕES
+    # =========================================================
 
     def _notificar_selecao(
         self,
