@@ -57,7 +57,13 @@ REGRAS EDITORIAIS
    iluminação, cores, texto e espaço visual para alta legibilidade.
 10. Gere exatamente {pedido.quantidade_perguntas} perguntas.
 11. Cada pergunta deve ser coerente com o formato solicitado.
-12. Não inclua markdown, comentários ou texto fora do JSON.
+12. Em quizzes de opinião ou preferência, como "O que você prefere?",
+    "Você escolheria?", "Qual você prefere?" ou formatos equivalentes,
+    não existe resposta correta. Nesses casos, entregue o campo
+    "resposta" como uma string vazia: "".
+13. Somente quizzes objetivos, com resposta verificável, devem trazer
+    uma resposta correta no campo "resposta".
+14. Não inclua markdown, comentários ou texto fora do JSON.
 
 FORMATO OBRIGATÓRIO
 Retorne somente um objeto JSON válido seguindo esta estrutura:

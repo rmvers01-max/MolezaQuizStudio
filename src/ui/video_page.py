@@ -55,8 +55,8 @@ class VideoPage(ctk.CTkFrame):
         ctk.CTkLabel(
             cabecalho,
             text=(
-                "Crie vídeos com narração, música, "
-                "contagem regressiva e respostas."
+                "Crie vídeos com narração, música e contagem. "
+                "Quizzes de preferência não exibem resposta correta."
             ),
             text_color="gray70"
         ).pack(
@@ -563,6 +563,59 @@ class VideoPage(ctk.CTkFrame):
                 )
             )
             return
+
+        configuracao = (
+            self.project_manager
+            .carregar_configuracao_projeto(
+                pasta_projeto
+            )
+        )
+
+        tipo_quiz = str(
+            configuracao.get(
+                "tipo_quiz",
+                ""
+            )
+        ).strip().lower()
+
+        if not tipo_quiz:
+            tipo_quiz = (
+                "preferencia"
+                if all(
+                    not str(
+                        pergunta.get(
+                            "resposta",
+                            ""
+                        )
+                    ).strip()
+                    for pergunta in perguntas
+                )
+                else "conhecimento"
+            )
+
+        if tipo_quiz == "preferencia":
+            texto_atual = (
+                self.texto_encerramento
+                .get()
+                .strip()
+            )
+
+            if (
+                not texto_atual
+                or texto_atual
+                == "Comente quantos pontos você fez!"
+            ):
+                self.texto_encerramento.delete(
+                    0,
+                    "end"
+                )
+                self.texto_encerramento.insert(
+                    0,
+                    (
+                        "Qual foi a sua escolha favorita? "
+                        "Conte nos comentários!"
+                    )
+                )
 
         usar_narracao = bool(
             self.usar_narracao.get()

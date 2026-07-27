@@ -60,8 +60,8 @@ class NarrationPage(ctk.CTkFrame):
         ctk.CTkLabel(
             cabecalho,
             text=(
-                "Gere arquivos de áudio para "
-                "as perguntas e respostas do quiz."
+                "Gere os áudios do quiz. Em quizzes de preferência, "
+                "somente a pergunta é narrada."
             ),
             text_color="gray70"
         ).pack(

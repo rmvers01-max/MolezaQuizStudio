@@ -92,8 +92,22 @@ class AudioGenerator:
                 pergunta=pergunta
             )
 
-            texto_resposta = self._montar_texto_resposta(
+            quiz_preferencia = self._eh_quiz_preferencia(
                 pergunta
+            )
+
+            texto_resposta = (
+                ""
+                if quiz_preferencia
+                else self._montar_texto_resposta(
+                    pergunta
+                )
+            )
+
+            texto_escolha = (
+                self._montar_texto_escolha()
+                if quiz_preferencia
+                else ""
             )
 
             caminho_pergunta = (
@@ -106,6 +120,11 @@ class AudioGenerator:
                 / f"resposta_{numero:03d}.mp3"
             )
 
+            caminho_escolha = (
+                pasta_audios
+                / f"escolha_{numero:03d}.mp3"
+            )
+
             await self._salvar_audio(
                 texto=texto_pergunta,
                 caminho=caminho_pergunta,
@@ -113,12 +132,27 @@ class AudioGenerator:
                 velocidade=velocidade
             )
 
-            await self._salvar_audio(
-                texto=texto_resposta,
-                caminho=caminho_resposta,
-                voz=voz,
-                velocidade=velocidade
-            )
+            if texto_resposta:
+                await self._salvar_audio(
+                    texto=texto_resposta,
+                    caminho=caminho_resposta,
+                    voz=voz,
+                    velocidade=velocidade
+                )
+
+            elif caminho_resposta.exists():
+                caminho_resposta.unlink()
+
+            if texto_escolha:
+                await self._salvar_audio(
+                    texto=texto_escolha,
+                    caminho=caminho_escolha,
+                    voz=voz,
+                    velocidade=velocidade
+                )
+
+            elif caminho_escolha.exists():
+                caminho_escolha.unlink()
 
         self._informar_progresso(
             callback_progresso,
@@ -183,11 +217,26 @@ class AudioGenerator:
                 )
             )
 
-        partes.append(
-            "Qual é a resposta correta?"
-        )
+        if self._eh_quiz_preferencia(
+            pergunta
+        ):
+            partes.append(
+                "Faça a sua escolha antes que o tempo acabe."
+            )
+        else:
+            partes.append(
+                "Qual é a resposta correta?"
+            )
 
         return " ".join(partes)
+
+    def _montar_texto_escolha(
+        self
+    ):
+        return (
+            "Tempo esgotado! "
+            "E aí, qual você escolheu?"
+        )
 
     def _montar_texto_resposta(
         self,
@@ -201,6 +250,29 @@ class AudioGenerator:
             f"A resposta correta é: {resposta}. "
             "Você acertou?"
         )
+
+    def _eh_quiz_preferencia(
+        self,
+        pergunta
+    ) -> bool:
+        tipo = str(
+            pergunta.get(
+                "tipo_quiz",
+                ""
+            )
+        ).strip().lower()
+
+        if tipo == "preferencia":
+            return True
+
+        resposta = pergunta.get(
+            "resposta",
+            ""
+        )
+
+        return not str(
+            resposta
+        ).strip()
 
     def _formatar_resposta(
         self,
