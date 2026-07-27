@@ -9,6 +9,7 @@ from .document_mixin import DocumentMixin
 from .elements_mixin import ElementsMixin
 from .helpers_mixin import HelpersMixin
 from .layout_mixin import LayoutMixin
+from .layers_controller import LayersController
 from .properties_mixin import PropertiesMixin
 
 
@@ -36,6 +37,8 @@ class ThumbnailEditorPage(
         self.elemento_copiado = None
         self.caminho_documento_atual = None
         self.documento_alterado = False
+
+        self.layers_controller = LayersController(self)
 
         self.historico_editor = ThumbnailEditorHistoryController(
             owner=self,

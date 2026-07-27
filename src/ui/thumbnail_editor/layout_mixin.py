@@ -652,6 +652,10 @@ class LayoutMixin:
             weight=1
         )
 
+        self.layers_controller.definir_container(
+            self.lista_camadas
+        )
+
     def _criar_campos_propriedades(
         self,
         painel

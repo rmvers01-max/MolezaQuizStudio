@@ -560,54 +560,6 @@ class ElementsMixin:
         )
 
     def atualizar_lista_camadas(self):
-        for widget in self.lista_camadas.winfo_children():
-            widget.destroy()
+        if hasattr(self, "layers_controller"):
+            self.layers_controller.atualizar()
 
-        documento = self.canvas_editor.obter_documento()
-
-        elementos = sorted(
-            documento.elementos,
-            key=lambda item: item.camada,
-            reverse=True
-        )
-
-        for indice, elemento in enumerate(
-            elementos
-        ):
-            texto = (
-                f"{elemento.nome}\n"
-                f"{elemento.tipo} • camada {elemento.camada}"
-            )
-
-            if elemento.bloqueado:
-                texto += " • bloqueado"
-
-            botao = ctk.CTkButton(
-                self.lista_camadas,
-                text=texto,
-                anchor="w",
-                height=48,
-                fg_color=(
-                    "#1F6AA5"
-                    if (
-                        self.elemento_selecionado
-                        and elemento.id
-                        == self.elemento_selecionado.id
-                    )
-                    else "gray30"
-                ),
-                hover_color="gray25",
-                command=lambda elemento_id=elemento.id: (
-                    self.canvas_editor.selecionar_elemento(
-                        elemento_id
-                    )
-                )
-            )
-
-            botao.grid(
-                row=indice,
-                column=0,
-                sticky="ew",
-                padx=4,
-                pady=3
-            )

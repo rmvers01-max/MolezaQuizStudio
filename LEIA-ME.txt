@@ -1,25 +1,18 @@
-MOLEZA QUIZ STUDIO - SISTEMA DE TRANSFORMAÇÃO
+MOLEZA QUIZ STUDIO — PAINEL PROFISSIONAL DE CAMADAS
 
-Arquivos atualizados:
-- src/ui/thumbnail_editor/canvas.py
-- src/ui/thumbnail_editor/interaction_mixin.py
-- src/ui/thumbnail_editor/render_mixin.py
+Copie a pasta src para a raiz do projeto D:\MolezaQuizStudio e permita substituir os arquivos.
 
-Novos recursos:
-- oito alças de redimensionamento;
-- alça circular de rotação;
-- rotação livre pelo mouse;
-- encaixe automático em 15 graus;
-- Shift durante a rotação força incrementos de 15 graus;
-- Shift durante o redimensionamento preserva a proporção;
-- Alt durante o redimensionamento escala a partir do centro;
-- imagens, textos e retângulos acompanham visualmente a rotação.
+Arquivos incluídos:
+- src/ui/thumbnail_editor/layers_controller.py (novo)
+- src/ui/thumbnail_editor/page.py
+- src/ui/thumbnail_editor/layout_mixin.py
+- src/ui/thumbnail_editor/elements_mixin.py
 
-INSTALAÇÃO
-Extraia este ZIP diretamente em D:\MolezaQuizStudio e permita substituir os arquivos.
-
-TESTE
-python -m py_compile src\ui\thumbnail_editor\canvas.py
-python -m py_compile src\ui\thumbnail_editor\interaction_mixin.py
-python -m py_compile src\ui\thumbnail_editor\render_mixin.py
-python src\main.py
+Recursos:
+- arrastar e soltar camadas para reordenar;
+- mostrar/ocultar camada;
+- bloquear/desbloquear camada;
+- duplo clique no nome para renomear;
+- ícones por tipo de elemento;
+- seleção integrada;
+- histórico Ctrl+Z/Ctrl+Y.
