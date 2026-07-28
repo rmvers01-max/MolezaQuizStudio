@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
+import re
+import unicodedata
 import shutil
 import uuid
 
@@ -151,6 +153,19 @@ class QuestionEditor(ctk.CTkFrame):
             padx=4
         )
 
+        ctk.CTkButton(
+            cabecalho,
+            text="AUTOASSOCIAR IMAGENS",
+            width=175,
+            fg_color="#C56B21",
+            hover_color="#9F5419",
+            command=self.autoassociar_imagens
+        ).grid(
+            row=0,
+            column=3,
+            padx=4
+        )
+
         self.botao_salvar_tudo = ctk.CTkButton(
             cabecalho,
             text="SALVAR QUIZ",
@@ -161,7 +176,7 @@ class QuestionEditor(ctk.CTkFrame):
 
         self.botao_salvar_tudo.grid(
             row=0,
-            column=3,
+            column=4,
             padx=(8, 0)
         )
 
@@ -1248,6 +1263,419 @@ class QuestionEditor(ctk.CTkFrame):
         self.selecionar_pergunta(
             destino
         )
+
+    # =========================================================
+    # ASSOCIAÇÃO AUTOMÁTICA DE IMAGENS
+    # =========================================================
+
+    def autoassociar_imagens(self):
+        if self.pasta_projeto is None:
+            messagebox.showinfo(
+                "Nenhum projeto",
+                "Selecione um projeto antes de associar imagens.",
+                parent=self.winfo_toplevel()
+            )
+            return
+
+        self._aplicar_sem_mensagem()
+
+        pasta_padrao = (
+            self.pasta_projeto
+            / "imagens"
+        )
+
+        pasta_escolhida = filedialog.askdirectory(
+            parent=self.winfo_toplevel(),
+            title=(
+                "Selecione a pasta que contém "
+                "as imagens das alternativas"
+            ),
+            initialdir=(
+                str(pasta_padrao)
+                if pasta_padrao.exists()
+                else str(self.pasta_projeto)
+            )
+        )
+
+        if not pasta_escolhida:
+            return
+
+        arquivos = self._listar_imagens(
+            Path(pasta_escolhida)
+        )
+
+        if not arquivos:
+            messagebox.showwarning(
+                "Nenhuma imagem",
+                (
+                    "A pasta selecionada não contém "
+                    "imagens PNG, JPG, JPEG ou WEBP."
+                ),
+                parent=self.winfo_toplevel()
+            )
+            return
+
+        alteracoes = 0
+        detalhes = []
+
+        for numero, pergunta in enumerate(
+            self.perguntas,
+            start=1
+        ):
+            alternativas = pergunta.get(
+                "alternativas",
+                []
+            )
+
+            if not isinstance(
+                alternativas,
+                list
+            ):
+                continue
+
+            for indice, campo in [
+                (0, "imagem_a"),
+                (1, "imagem_b")
+            ]:
+                if indice >= len(
+                    alternativas
+                ):
+                    continue
+
+                caminho_existente = str(
+                    pergunta.get(
+                        campo,
+                        ""
+                    )
+                    or ""
+                ).strip()
+
+                if (
+                    caminho_existente
+                    and Path(
+                        caminho_existente
+                    ).exists()
+                ):
+                    continue
+
+                alternativa = str(
+                    alternativas[
+                        indice
+                    ]
+                ).strip()
+
+                encontrado = (
+                    self._encontrar_melhor_imagem(
+                        alternativa,
+                        arquivos
+                    )
+                )
+
+                if encontrado is None:
+                    continue
+
+                destino = self._copiar_imagem_para_projeto(
+                    origem=encontrado,
+                    numero_pergunta=numero,
+                    lado=(
+                        "a"
+                        if indice == 0
+                        else "b"
+                    )
+                )
+
+                pergunta[campo] = str(
+                    destino.resolve()
+                )
+
+                alteracoes += 1
+                detalhes.append(
+                    (
+                        f"Pergunta {numero} — "
+                        f"{alternativa}: "
+                        f"{encontrado.name}"
+                    )
+                )
+
+        if self.indice_atual is not None:
+            self.selecionar_pergunta(
+                self.indice_atual
+            )
+
+        if not alteracoes:
+            messagebox.showinfo(
+                "Nenhuma associação",
+                (
+                    "Nenhuma imagem compatível foi encontrada.\\n\\n"
+                    "Dica: nomeie os arquivos usando o texto da "
+                    "alternativa, por exemplo:\\n"
+                    "pizza.png\\n"
+                    "hamburguer.png"
+                ),
+                parent=self.winfo_toplevel()
+            )
+            return
+
+        resumo = "\\n".join(
+            detalhes[:12]
+        )
+
+        if len(detalhes) > 12:
+            resumo += (
+                f"\\n... e mais "
+                f"{len(detalhes) - 12} associação(ões)."
+            )
+
+        self.status.configure(
+            text=(
+                f"{alteracoes} imagem(ns) associada(s). "
+                "Clique em Salvar Quiz para gravar."
+            )
+        )
+
+        messagebox.showinfo(
+            "Imagens associadas",
+            (
+                f"{alteracoes} imagem(ns) foram associadas "
+                f"automaticamente.\\n\\n{resumo}"
+            ),
+            parent=self.winfo_toplevel()
+        )
+
+    def _listar_imagens(
+        self,
+        pasta
+    ) -> list[Path]:
+        extensoes = {
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".webp"
+        }
+
+        return sorted(
+            [
+                caminho
+                for caminho in pasta.rglob("*")
+                if (
+                    caminho.is_file()
+                    and caminho.suffix.lower()
+                    in extensoes
+                )
+            ],
+            key=lambda caminho: caminho.name.lower()
+        )
+
+    def _encontrar_melhor_imagem(
+        self,
+        alternativa,
+        arquivos
+    ):
+        alvo = self._normalizar_nome(
+            alternativa
+        )
+
+        if not alvo:
+            return None
+
+        candidatos = []
+
+        for arquivo in arquivos:
+            nome = self._normalizar_nome(
+                arquivo.stem
+            )
+
+            if not nome:
+                continue
+
+            pontuacao = self._pontuar_correspondencia(
+                alvo,
+                nome
+            )
+
+            if pontuacao > 0:
+                candidatos.append(
+                    (
+                        pontuacao,
+                        len(nome),
+                        arquivo
+                    )
+                )
+
+        if not candidatos:
+            return None
+
+        candidatos.sort(
+            key=lambda item: (
+                -item[0],
+                item[1],
+                item[2].name.lower()
+            )
+        )
+
+        melhor_pontuacao, _, melhor = (
+            candidatos[0]
+        )
+
+        return (
+            melhor
+            if melhor_pontuacao >= 55
+            else None
+        )
+
+    def _pontuar_correspondencia(
+        self,
+        alvo,
+        nome
+    ) -> int:
+        if alvo == nome:
+            return 100
+
+        if alvo in nome:
+            return 90
+
+        if nome in alvo:
+            return 82
+
+        palavras_alvo = set(
+            alvo.split()
+        )
+
+        palavras_nome = set(
+            nome.split()
+        )
+
+        if not palavras_alvo:
+            return 0
+
+        comuns = palavras_alvo.intersection(
+            palavras_nome
+        )
+
+        if not comuns:
+            return 0
+
+        proporcao = (
+            len(comuns)
+            / len(palavras_alvo)
+        )
+
+        return int(
+            proporcao * 75
+        )
+
+    def _normalizar_nome(
+        self,
+        texto
+    ) -> str:
+        normalizado = unicodedata.normalize(
+            "NFKD",
+            str(texto).lower()
+        )
+
+        sem_acentos = "".join(
+            caractere
+            for caractere in normalizado
+            if not unicodedata.combining(
+                caractere
+            )
+        )
+
+        palavras = re.findall(
+            r"[a-z0-9]+",
+            sem_acentos
+        )
+
+        ignoradas = {
+            "a",
+            "o",
+            "as",
+            "os",
+            "de",
+            "da",
+            "do",
+            "das",
+            "dos",
+            "um",
+            "uma",
+            "com",
+            "ou"
+        }
+
+        return " ".join(
+            palavra
+            for palavra in palavras
+            if palavra not in ignoradas
+        )
+
+    def _copiar_imagem_para_projeto(
+        self,
+        origem,
+        numero_pergunta,
+        lado
+    ) -> Path:
+        pasta_imagens = (
+            self.pasta_projeto
+            / "imagens"
+        )
+
+        pasta_imagens.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        nome_base = self._normalizar_nome(
+            origem.stem
+        ).replace(
+            " ",
+            "_"
+        )
+
+        nome_base = (
+            nome_base[:40]
+            or "imagem"
+        )
+
+        destino = (
+            pasta_imagens
+            / (
+                f"pergunta_"
+                f"{numero_pergunta:03d}_"
+                f"{lado}_"
+                f"{nome_base}"
+                f"{origem.suffix.lower()}"
+            )
+        )
+
+        contador = 2
+        destino_final = destino
+
+        while (
+            destino_final.exists()
+            and destino_final.resolve()
+            != origem.resolve()
+        ):
+            destino_final = (
+                pasta_imagens
+                / (
+                    f"pergunta_"
+                    f"{numero_pergunta:03d}_"
+                    f"{lado}_"
+                    f"{nome_base}_"
+                    f"{contador}"
+                    f"{origem.suffix.lower()}"
+                )
+            )
+
+            contador += 1
+
+        if destino_final.resolve() != origem.resolve():
+            shutil.copy2(
+                origem,
+                destino_final
+            )
+
+        return destino_final
 
     # =========================================================
     # PRÉVIA DO VÍDEO
