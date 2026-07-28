@@ -2,6 +2,7 @@ import customtkinter as ctk
 
 from core.quiz_generator import QuizGenerator
 from utils.config import Config
+from ui.question_editor import QuestionEditorWindow
 
 
 class QuizPage(ctk.CTkFrame):
@@ -144,7 +145,21 @@ class QuizPage(ctk.CTkFrame):
         )
 
         self.botao_gerar.pack(
-            pady=(20, 15)
+            pady=(20, 10)
+        )
+
+        self.botao_editor = ctk.CTkButton(
+            painel_configuracoes,
+            text="ABRIR EDITOR DE PERGUNTAS",
+            width=260,
+            height=42,
+            fg_color="#6C4BC2",
+            hover_color="#563A9E",
+            command=self.abrir_editor_perguntas
+        )
+
+        self.botao_editor.pack(
+            pady=(0, 15)
         )
 
         # Status
@@ -317,6 +332,11 @@ class QuizPage(ctk.CTkFrame):
                 state="normal",
                 text="GERAR QUIZ"
             )
+
+    def abrir_editor_perguntas(self):
+        QuestionEditorWindow(
+            self.winfo_toplevel()
+        )
 
     def mostrar_perguntas(self, perguntas):
         self.caixa.delete(

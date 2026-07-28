@@ -1,6 +1,7 @@
 from typing import Any
 
 from .legacy_generator import LegacyVideoGenerator
+from .templates.preference_renderer import ProfessionalPreferenceRenderer
 from .templates.registry import VideoTemplateRegistry
 
 
@@ -10,6 +11,9 @@ class VideoGenerator:
     def __init__(self):
         self.registry = VideoTemplateRegistry()
         self.renderer = LegacyVideoGenerator()
+        self.preference_renderer = (
+            ProfessionalPreferenceRenderer()
+        )
 
     @property
     def largura(self):
@@ -18,6 +22,7 @@ class VideoGenerator:
     @largura.setter
     def largura(self, valor):
         self.renderer.largura = valor
+        self.preference_renderer.largura = valor
 
     @property
     def altura(self):
@@ -26,6 +31,7 @@ class VideoGenerator:
     @altura.setter
     def altura(self, valor):
         self.renderer.altura = valor
+        self.preference_renderer.altura = valor
 
     @property
     def fps(self):
@@ -34,6 +40,7 @@ class VideoGenerator:
     @fps.setter
     def fps(self, valor):
         self.renderer.fps = valor
+        self.preference_renderer.fps = valor
 
     def gerar_video(
         self,
@@ -71,7 +78,13 @@ class VideoGenerator:
                 template.texto_encerramento_padrao()
             )
 
-        return self.renderer.gerar_video(
+        renderer = (
+            self.preference_renderer
+            if tipo_quiz == "preferencia"
+            else self.renderer
+        )
+
+        return renderer.gerar_video(
             pasta_projeto=pasta_projeto,
             perguntas=perguntas_preparadas,
             tempo_resposta=tempo_resposta,
