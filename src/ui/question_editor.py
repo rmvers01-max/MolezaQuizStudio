@@ -10,6 +10,7 @@ from PIL import Image, UnidentifiedImageError
 from tkinter import filedialog, messagebox
 
 from core.project_manager import ProjectManager
+from ui.question_preview import QuestionPreviewGenerator
 
 
 class QuestionEditorWindow(ctk.CTkToplevel):
@@ -55,6 +56,7 @@ class QuestionEditor(ctk.CTkFrame):
         super().__init__(master)
 
         self.project_manager = ProjectManager()
+        self.preview_generator = QuestionPreviewGenerator()
 
         self.projetos: dict[str, Path] = {}
         self.pasta_projeto: Path | None = None
@@ -581,6 +583,19 @@ class QuestionEditor(ctk.CTkFrame):
             fg_color="gray35",
             hover_color="gray25",
             command=self.recarregar_pergunta
+        ).pack(
+            side="left",
+            padx=6
+        )
+
+        ctk.CTkButton(
+            botoes,
+            text="PRÉVIA DO VÍDEO",
+            width=170,
+            height=42,
+            fg_color="#C56B21",
+            hover_color="#9F5419",
+            command=self.abrir_previa_video
         ).pack(
             side="left",
             padx=6
@@ -1235,6 +1250,294 @@ class QuestionEditor(ctk.CTkFrame):
         )
 
     # =========================================================
+    # PRÉVIA DO VÍDEO
+    # =========================================================
+
+    def abrir_previa_video(self):
+        if (
+            self.indice_atual is None
+            or self.pasta_projeto is None
+        ):
+            return
+
+        if not self._aplicar_sem_mensagem():
+            messagebox.showwarning(
+                "Pergunta incompleta",
+                "Informe o texto da pergunta antes de gerar a prévia.",
+                parent=self.winfo_toplevel()
+            )
+            return
+
+        pergunta = self.perguntas[
+            self.indice_atual
+        ]
+
+        janela = ctk.CTkToplevel(
+            self.winfo_toplevel()
+        )
+
+        janela.title(
+            "Prévia do vídeo"
+        )
+
+        janela.geometry(
+            "1160x780"
+        )
+
+        janela.minsize(
+            900,
+            650
+        )
+
+        janela.transient(
+            self.winfo_toplevel()
+        )
+
+        janela.grid_columnconfigure(
+            0,
+            weight=1
+        )
+
+        janela.grid_rowconfigure(
+            1,
+            weight=1
+        )
+
+        barra = ctk.CTkFrame(
+            janela
+        )
+
+        barra.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            padx=18,
+            pady=18
+        )
+
+        barra.grid_columnconfigure(
+            0,
+            weight=1
+        )
+
+        ctk.CTkLabel(
+            barra,
+            text=(
+                f"Prévia da pergunta "
+                f"{self.indice_atual + 1}"
+            ),
+            font=("Arial", 20, "bold")
+        ).grid(
+            row=0,
+            column=0,
+            sticky="w",
+            padx=12,
+            pady=10
+        )
+
+        etapa = ctk.CTkOptionMenu(
+            barra,
+            values=[
+                "Pergunta",
+                "Contagem",
+                "Resultado"
+            ],
+            width=150
+        )
+
+        etapa.set(
+            "Pergunta"
+        )
+
+        etapa.grid(
+            row=0,
+            column=1,
+            padx=6
+        )
+
+        contador = ctk.CTkOptionMenu(
+            barra,
+            values=[
+                "5",
+                "4",
+                "3",
+                "2",
+                "1"
+            ],
+            width=80
+        )
+
+        contador.set(
+            "5"
+        )
+
+        contador.grid(
+            row=0,
+            column=2,
+            padx=6
+        )
+
+        painel_imagem = ctk.CTkFrame(
+            janela
+        )
+
+        painel_imagem.grid(
+            row=1,
+            column=0,
+            sticky="nsew",
+            padx=18,
+            pady=(0, 18)
+        )
+
+        painel_imagem.grid_columnconfigure(
+            0,
+            weight=1
+        )
+
+        painel_imagem.grid_rowconfigure(
+            0,
+            weight=1
+        )
+
+        preview_label = ctk.CTkLabel(
+            painel_imagem,
+            text="Gerando prévia...",
+            fg_color="#171922",
+            corner_radius=14
+        )
+
+        preview_label.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+            padx=14,
+            pady=14
+        )
+
+        estado = {
+            "imagem_ctk": None
+        }
+
+        def gerar():
+            mapa_etapas = {
+                "Pergunta": "pergunta",
+                "Contagem": "contagem",
+                "Resultado": "resultado"
+            }
+
+            try:
+                caminho = (
+                    self.preview_generator
+                    .gerar(
+                        pasta_projeto=(
+                            self.pasta_projeto
+                        ),
+                        pergunta=pergunta,
+                        numero=(
+                            self.indice_atual
+                            + 1
+                        ),
+                        etapa=mapa_etapas[
+                            etapa.get()
+                        ],
+                        contador=int(
+                            contador.get()
+                        )
+                    )
+                )
+
+                imagem = Image.open(
+                    caminho
+                ).convert("RGB")
+
+                largura_disponivel = max(
+                    janela.winfo_width()
+                    - 90,
+                    800
+                )
+
+                altura_disponivel = max(
+                    janela.winfo_height()
+                    - 170,
+                    450
+                )
+
+                imagem.thumbnail(
+                    (
+                        largura_disponivel,
+                        altura_disponivel
+                    ),
+                    Image.Resampling.LANCZOS
+                )
+
+                imagem_ctk = ctk.CTkImage(
+                    light_image=imagem,
+                    dark_image=imagem,
+                    size=imagem.size
+                )
+
+                estado["imagem_ctk"] = (
+                    imagem_ctk
+                )
+
+                preview_label.configure(
+                    image=imagem_ctk,
+                    text=""
+                )
+
+            except Exception as erro:
+                preview_label.configure(
+                    image=None,
+                    text=(
+                        "Não foi possível gerar "
+                        f"a prévia:\n{erro}"
+                    )
+                )
+
+        ctk.CTkButton(
+            barra,
+            text="ATUALIZAR PRÉVIA",
+            width=160,
+            command=gerar
+        ).grid(
+            row=0,
+            column=3,
+            padx=8
+        )
+
+        janela.after(
+            150,
+            gerar
+        )
+
+    def validar_imagens_da_pergunta(
+        self,
+        pergunta
+    ) -> list[str]:
+        problemas = []
+
+        for campo, rotulo in [
+            ("imagem_a", "Imagem A"),
+            ("imagem_b", "Imagem B")
+        ]:
+            caminho = str(
+                pergunta.get(
+                    campo,
+                    ""
+                )
+                or ""
+            ).strip()
+
+            if caminho and not Path(
+                caminho
+            ).exists():
+                problemas.append(
+                    f"{rotulo}: arquivo não encontrado"
+                )
+
+        return problemas
+
+    # =========================================================
     # IMAGENS
     # =========================================================
 
@@ -1461,6 +1764,40 @@ class QuestionEditor(ctk.CTkFrame):
 
         self._aplicar_sem_mensagem()
         self._renumerar_perguntas()
+
+        problemas = []
+
+        for indice, pergunta in enumerate(
+            self.perguntas,
+            start=1
+        ):
+            for problema in (
+                self.validar_imagens_da_pergunta(
+                    pergunta
+                )
+            ):
+                problemas.append(
+                    f"Pergunta {indice}: {problema}"
+                )
+
+        if problemas:
+            resumo = "\n".join(
+                problemas[:10]
+            )
+
+            continuar = messagebox.askyesno(
+                "Imagens não encontradas",
+                (
+                    "Foram encontrados caminhos de imagem "
+                    "inválidos:\n\n"
+                    f"{resumo}\n\n"
+                    "Deseja salvar mesmo assim?"
+                ),
+                parent=self.winfo_toplevel()
+            )
+
+            if not continuar:
+                return
 
         try:
             caminho = (
