@@ -25,6 +25,11 @@ class CardStyleFactory:
     ):
         x1, y1, x2, y2 = caixa
 
+        if imagem_base.mode != "RGBA":
+            raise ValueError(
+                "CardStyleFactory requer imagem-base em modo RGBA."
+            )
+
         camada_sombra = Image.new(
             "RGBA",
             imagem_base.size,

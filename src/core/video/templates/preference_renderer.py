@@ -24,6 +24,11 @@ from ..effects import (
 from ..widgets import CardStyleFactory, MascotWidget
 from .visual_presets import VisualPresetRegistry
 from .layout_variations import LayoutVariationRegistry
+from ..timeline import (
+    PreferenceTimelineFactory,
+    TimelineCompositor,
+    TimelineManifestWriter,
+)
 
 from ..legacy_generator import LegacyVideoGenerator
 
@@ -121,6 +126,20 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         self.preset_registry = VisualPresetRegistry()
         self.layout_registry = LayoutVariationRegistry()
         self.layout_atual = self.layout_registry.obter(1)
+
+        self.timeline_factory = (
+            PreferenceTimelineFactory()
+        )
+
+        self.timeline_writer = (
+            TimelineManifestWriter()
+        )
+
+        self.timeline_compositor = (
+            TimelineCompositor(
+                fps=18
+            )
+        )
         self.preset_visual = (
             self.preset_registry
             .obter(
@@ -232,62 +251,36 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             / f"pergunta_{numero:03d}.png"
         )
 
-        caminho_base_entrada = (
-            pasta_frames
-            / f"pergunta_{numero:03d}_base.png"
-        )
-
-        caminho_cartao_a = (
-            pasta_frames
-            / f"pergunta_{numero:03d}_cartao_a.png"
-        )
-
-        caminho_cartao_b = (
-            pasta_frames
-            / f"pergunta_{numero:03d}_cartao_b.png"
-        )
-
-        caminho_selo_ou = (
-            pasta_frames
-            / f"pergunta_{numero:03d}_ou.png"
-        )
-
-        self._criar_frame_pergunta(
-            caminho=caminho_frame_pergunta,
-            numero=numero,
-            pergunta=pergunta
-        )
-
-        self._criar_camadas_entrada(
-            caminho_base=caminho_base_entrada,
-            caminho_cartao_a=caminho_cartao_a,
-            caminho_cartao_b=caminho_cartao_b,
-            caminho_selo_ou=caminho_selo_ou,
-            numero=numero,
-            pergunta=pergunta
-        )
-
         duracao_entrada = min(
             1.1,
             duracao_pergunta
         )
 
-        mascote_idle = (
-            self.mascot_widget
-            .preparar_pose(
-                pose="idle",
-                tamanho=(185, 185)
+        cena_entrada = (
+            self.timeline_factory
+            .criar_entrada(
+                pergunta=pergunta,
+                numero=numero,
+                layout=self.layout_atual,
+                preset=self.preset_visual,
+                duracao=duracao_entrada
+            )
+        )
+
+        self.timeline_writer.salvar(
+            cena=cena_entrada,
+            caminho=(
+                pasta_frames
+                / (
+                    f"pergunta_{numero:03d}"
+                    "_entrada_timeline.json"
+                )
             )
         )
 
         clips_video.append(
-            self.layered_animator.criar_entrada_opcoes(
-                caminho_base=caminho_base_entrada,
-                caminho_cartao_a=caminho_cartao_a,
-                caminho_cartao_b=caminho_cartao_b,
-                caminho_ou=caminho_selo_ou,
-                duracao=duracao_entrada,
-                mascote=mascote_idle
+            self.timeline_compositor.renderizar(
+                cena_entrada
             )
         )
 
@@ -321,14 +314,32 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         )
 
         if restante_pergunta > 0.01:
-            clips_video.append(
-                self.professional_scene_engine.criar_cena_pergunta(
-                    caminho_frame=caminho_frame_pergunta,
+            cena_timeline = (
+                self.timeline_factory
+                .criar_pergunta(
+                    pergunta=pergunta,
+                    numero=numero,
                     duracao=restante_pergunta,
-                    zoom_final=(
-                        self.preset_visual
-                        .zoom_cena
+                    layout=self.layout_atual,
+                    preset=self.preset_visual,
+                    caminho_frame=caminho_frame_pergunta
+                )
+            )
+
+            self.timeline_writer.salvar(
+                cena=cena_timeline,
+                caminho=(
+                    pasta_frames
+                    / (
+                        f"pergunta_{numero:03d}"
+                        "_timeline.json"
                     )
+                )
+            )
+
+            clips_video.append(
+                self.timeline_compositor.renderizar(
+                    cena_timeline
                 )
             )
 
@@ -342,34 +353,33 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             0,
             -1
         ):
-            caminho_contagem = (
-                pasta_frames
-                / (
-                    f"pergunta_{numero:03d}"
-                    f"_contador_{contador}.png"
+            cena_contagem = (
+                self.timeline_factory
+                .criar_contagem(
+                    pergunta=pergunta,
+                    numero=numero,
+                    contador=contador,
+                    layout=self.layout_atual,
+                    preset=self.preset_visual,
+                    duracao=1.0
                 )
             )
 
-            self._criar_frame_contagem(
-                caminho=caminho_contagem,
-                numero=numero,
-                pergunta=pergunta,
-                contador=contador
-            )
-
-            mascote_pensando = (
-                self.mascot_widget
-                .preparar_pose(
-                    pose="thinking",
-                    tamanho=(185, 185)
+            self.timeline_writer.salvar(
+                cena=cena_contagem,
+                caminho=(
+                    pasta_frames
+                    / (
+                        f"pergunta_{numero:03d}"
+                        f"_contador_{contador}"
+                        "_timeline.json"
+                    )
                 )
             )
 
             clips_video.append(
-                self.professional_scene_engine.criar_cena_contagem(
-                    caminho_frame=caminho_contagem,
-                    duracao=1.0,
-                    zoom_final=1.01
+                self.timeline_compositor.renderizar(
+                    cena_contagem
                 )
             )
 
@@ -429,69 +439,51 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
                 )
             )
 
-        caminho_frame_escolha = (
+        cena_resultado = (
+            self.timeline_factory
+            .criar_resultado(
+                pergunta=pergunta,
+                numero=numero,
+                layout=self.layout_atual,
+                preset=self.preset_visual,
+                duracao=duracao_escolha
+            )
+        )
+
+        self.timeline_writer.salvar(
+            cena=cena_resultado,
+            caminho=(
+                pasta_frames
+                / (
+                    f"pergunta_{numero:03d}"
+                    "_resultado_timeline.json"
+                )
+            )
+        )
+
+        clips_video.append(
+            self.timeline_compositor.renderizar(
+                cena_resultado
+            )
+        )
+
+        caminho_frame_transicao = (
             pasta_frames
             / (
                 f"pergunta_{numero:03d}"
-                "_escolha.png"
+                "_transicao.png"
             )
         )
 
         self._criar_frame_escolha(
-            caminho=caminho_frame_escolha,
+            caminho=caminho_frame_transicao,
             numero=numero,
             pergunta=pergunta
         )
 
-        duracao_confete = min(
-            1.2,
-            duracao_escolha
-        )
-
-        mascote_celebrando = (
-            self.mascot_widget
-            .preparar_pose(
-                pose="celebrate",
-                tamanho=(185, 185)
-            )
-        )
-
-        clips_video.append(
-            self.confetti_factory.aplicar(
-                caminho_frame=caminho_frame_escolha,
-                duracao=duracao_confete,
-                mascote=mascote_celebrando
-            )
-        )
-
-        restante_escolha = (
-            duracao_escolha
-            - duracao_confete
-        )
-
-        if restante_escolha > 0.01:
-            if mascote_celebrando is not None:
-                clips_video.append(
-                    self.mascot_animation.animar_sobre_frame(
-                        caminho_frame=caminho_frame_escolha,
-                        mascote=mascote_celebrando,
-                        duracao=restante_escolha,
-                        intensidade_balanco=7,
-                        intensidade_respiracao=0.035
-                    )
-                )
-            else:
-                clips_video.append(
-                    ImageClip(
-                        str(caminho_frame_escolha)
-                    ).with_duration(
-                        restante_escolha
-                    )
-                )
-
         clips_video.append(
             self.transition_factory.criar_flash(
-                caminho_imagem=caminho_frame_escolha,
+                caminho_imagem=caminho_frame_transicao,
                 duracao=0.28
             )
         )
@@ -1044,10 +1036,17 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         return imagem
 
     def _criar_base(self):
+        # O CardStyleFactory usa alpha_composite para aplicar
+        # sombras e brilhos. Por isso, a base precisa estar em RGBA.
         imagem = Image.new(
-            "RGB",
+            "RGBA",
             (self.largura, self.altura),
-            self.COR_ESCURO
+            (
+                self.COR_ESCURO[0],
+                self.COR_ESCURO[1],
+                self.COR_ESCURO[2],
+                255
+            )
         )
 
         desenho = ImageDraw.Draw(imagem)
