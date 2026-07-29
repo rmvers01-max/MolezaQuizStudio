@@ -21,8 +21,9 @@ from ..effects import (
     SparklesFactory,
     LightSweepFactory,
 )
-from ..widgets import MascotWidget
+from ..widgets import CardStyleFactory, MascotWidget
 from .visual_presets import VisualPresetRegistry
+from .layout_variations import LayoutVariationRegistry
 
 from ..legacy_generator import LegacyVideoGenerator
 
@@ -68,6 +69,7 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             fps=15
         )
         self.mascot_widget = MascotWidget()
+        self.card_style_factory = CardStyleFactory()
 
         self.mascot_animation = MascotAnimationFactory(
             largura=self.largura,
@@ -117,6 +119,8 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             )
         )
         self.preset_registry = VisualPresetRegistry()
+        self.layout_registry = LayoutVariationRegistry()
+        self.layout_atual = self.layout_registry.obter(1)
         self.preset_visual = (
             self.preset_registry
             .obter(
@@ -550,22 +554,26 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             else "OPÇÃO B"
         )
 
-        cartao_a = Image.new(
-            "RGBA",
-            (480, 260),
-            (0, 0, 0, 0)
+        cartao_a_completo = (
+            self.card_style_factory
+            .criar_cartao_independente(
+                tamanho=(480, 260),
+                cor=self.COR_A,
+                raio=34
+            )
+        )
+
+        cartao_a = cartao_a_completo.crop(
+            (
+                20,
+                20,
+                500,
+                280
+            )
         )
 
         desenho_a = ImageDraw.Draw(
             cartao_a
-        )
-
-        desenho_a.rounded_rectangle(
-            (0, 0, 479, 259),
-            radius=34,
-            fill=self.COR_A,
-            outline=(255, 255, 255),
-            width=5
         )
 
         self._desenhar_opcao(
@@ -586,22 +594,26 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             caminho_cartao_a
         )
 
-        cartao_b = Image.new(
-            "RGBA",
-            (480, 260),
-            (0, 0, 0, 0)
+        cartao_b_completo = (
+            self.card_style_factory
+            .criar_cartao_independente(
+                tamanho=(480, 260),
+                cor=self.COR_B,
+                raio=34
+            )
+        )
+
+        cartao_b = cartao_b_completo.crop(
+            (
+                20,
+                20,
+                500,
+                280
+            )
         )
 
         desenho_b = ImageDraw.Draw(
             cartao_b
-        )
-
-        desenho_b.rounded_rectangle(
-            (0, 0, 479, 259),
-            radius=34,
-            fill=self.COR_B,
-            outline=(255, 255, 255),
-            width=5
         )
 
         self._desenhar_opcao(
@@ -824,7 +836,11 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             42
         )
 
-        y = 154
+        y = (
+            154
+            + self.layout_atual
+            .deslocamento_titulo_y
+        )
 
         for linha in textwrap.wrap(
             texto_pergunta,
@@ -849,6 +865,17 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             )
 
             y += 50
+
+    def definir_layout_por_pergunta(
+        self,
+        numero
+    ):
+        self.layout_atual = (
+            self.layout_registry
+            .obter(
+                numero
+            )
+        )
 
     def definir_preset_automatico(
         self,
@@ -1196,24 +1223,29 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
 
             y += 50
 
-        topo_cartao = 275
-        base_cartao = 535
+        caixa_a = self.layout_atual.caixa_a
+        caixa_b = self.layout_atual.caixa_b
 
-        desenho.rounded_rectangle(
-            (90, topo_cartao, 570, base_cartao),
-            radius=34,
-            fill=self.COR_A,
-            outline=(255, 255, 255),
-            width=5
+        self.card_style_factory.desenhar_cartao(
+            imagem_base=imagem,
+            caixa=caixa_a,
+            cor=self.COR_A,
+            raio=34
         )
 
-        desenho.rounded_rectangle(
-            (710, topo_cartao, 1190, base_cartao),
-            radius=34,
-            fill=self.COR_B,
-            outline=(255, 255, 255),
-            width=5
+        self.card_style_factory.desenhar_cartao(
+            imagem_base=imagem,
+            caixa=caixa_b,
+            cor=self.COR_B,
+            raio=34
         )
+
+        desenho = ImageDraw.Draw(
+            imagem
+        )
+
+        topo_cartao_a = caixa_a[1]
+        topo_cartao_b = caixa_b[1]
 
         caminho_imagem_a = self._obter_caminho_imagem(
             pergunta,
@@ -1228,8 +1260,11 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         self._desenhar_opcao(
             imagem_base=imagem,
             desenho=desenho,
-            centro_x=330,
-            topo=topo_cartao,
+            centro_x=(
+                caixa_a[0]
+                + caixa_a[2]
+            ) // 2,
+            topo=topo_cartao_a,
             letra="A",
             texto=alternativa_a,
             caminho_imagem=caminho_imagem_a,
@@ -1239,8 +1274,11 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         self._desenhar_opcao(
             imagem_base=imagem,
             desenho=desenho,
-            centro_x=950,
-            topo=topo_cartao,
+            centro_x=(
+                caixa_b[0]
+                + caixa_b[2]
+            ) // 2,
+            topo=topo_cartao_b,
             letra="B",
             texto=alternativa_b,
             caminho_imagem=caminho_imagem_b,
@@ -1251,10 +1289,8 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             imagem_base=imagem,
             desenho=desenho,
             caixa_destino=(
-                575,
-                325,
-                705,
-                455
+                self.layout_atual
+                .caixa_ou
             )
         )
 
@@ -1506,6 +1542,10 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         numero,
         pergunta
     ):
+        self.definir_layout_por_pergunta(
+            numero
+        )
+
         self._aplicar_paleta(
             numero
         )
@@ -1547,6 +1587,10 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         pergunta,
         contador
     ):
+        self.definir_layout_por_pergunta(
+            numero
+        )
+
         self._aplicar_paleta(
             numero
         )
@@ -1620,6 +1664,10 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         numero,
         pergunta
     ):
+        self.definir_layout_por_pergunta(
+            numero
+        )
+
         self._aplicar_paleta(
             numero
         )
