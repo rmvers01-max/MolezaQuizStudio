@@ -5,6 +5,7 @@ from .builder import (
     animacao,
 )
 from .models import LayerType
+from ..animations import CameraProfileRegistry
 
 
 class PreferenceTimelineFactory:
@@ -15,6 +16,10 @@ class PreferenceTimelineFactory:
     Esta representação será usada nas próximas etapas
     pelo novo compositor de timeline.
     """
+
+    def __init__(self):
+        self.camera_profiles = CameraProfileRegistry()
+
 
     def criar_pergunta(
         self,
@@ -257,6 +262,18 @@ class PreferenceTimelineFactory:
             "tipo_quiz": "preferencia",
             "layout": layout.nome,
             "preset": preset.nome,
+            "intensidade_fx": (
+                preset.intensidade_particulas
+            ),
+            "camera": {
+                "nome": self.camera_profiles.obter(numero).nome,
+                "zoom_inicial": self.camera_profiles.obter(numero).zoom_inicial,
+                "zoom_final": self.camera_profiles.obter(numero).zoom_final,
+                "pan_x": self.camera_profiles.obter(numero).pan_x,
+                "pan_y": self.camera_profiles.obter(numero).pan_y,
+                "rotacao": self.camera_profiles.obter(numero).rotacao,
+                "pulso_brilho": self.camera_profiles.obter(numero).pulso_brilho,
+            },
         })
 
         return builder.construir()
@@ -389,6 +406,18 @@ class PreferenceTimelineFactory:
             "tipo_quiz": "preferencia",
             "layout": layout.nome,
             "preset": preset.nome,
+            "intensidade_fx": (
+                preset.intensidade_particulas
+            ),
+            "camera": {
+                "nome": self.camera_profiles.obter(numero).nome,
+                "zoom_inicial": self.camera_profiles.obter(numero).zoom_inicial,
+                "zoom_final": self.camera_profiles.obter(numero).zoom_final,
+                "pan_x": self.camera_profiles.obter(numero).pan_x,
+                "pan_y": self.camera_profiles.obter(numero).pan_y,
+                "rotacao": self.camera_profiles.obter(numero).rotacao,
+                "pulso_brilho": self.camera_profiles.obter(numero).pulso_brilho,
+            },
         })
 
         return builder.construir()
@@ -527,6 +556,18 @@ class PreferenceTimelineFactory:
             "tipo_quiz": "preferencia",
             "layout": layout.nome,
             "preset": preset.nome,
+            "intensidade_fx": (
+                preset.intensidade_particulas
+            ),
+            "camera": {
+                "nome": self.camera_profiles.obter(numero).nome,
+                "zoom_inicial": self.camera_profiles.obter(numero).zoom_inicial,
+                "zoom_final": self.camera_profiles.obter(numero).zoom_final,
+                "pan_x": self.camera_profiles.obter(numero).pan_x,
+                "pan_y": self.camera_profiles.obter(numero).pan_y,
+                "rotacao": self.camera_profiles.obter(numero).rotacao,
+                "pulso_brilho": self.camera_profiles.obter(numero).pulso_brilho,
+            },
         })
 
         return builder.construir()

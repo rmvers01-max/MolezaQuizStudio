@@ -4,24 +4,56 @@ import math
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageEnhance
 from moviepy import ImageSequenceClip
 
 from .models import LayerType
+from ..effects import (
+    ImageDepthFactory,
+    MotionBlurEngine,
+    VisualFXEngine,
+)
 
 
 class TimelineCompositor:
     def __init__(self, fps=18):
         self.fps = max(int(fps), 10)
+        self.visual_fx = VisualFXEngine()
+        self.motion_blur = MotionBlurEngine()
+        self.image_depth = ImageDepthFactory()
 
     def renderizar(self, cena):
         cena.validar()
+
+        self.visual_fx.largura = cena.largura
+        self.visual_fx.altura = cena.altura
+
         total = max(int(round(cena.duracao * self.fps)), 2)
         quadros = []
 
         for indice in range(total):
             t = indice / self.fps
             imagem = self._fundo(cena, t)
+
+            intensidade_fx = float(
+                cena.metadados.get(
+                    "intensidade_fx",
+                    0.55
+                )
+            )
+
+            self.visual_fx.aplicar_ambiente(
+                imagem,
+                tempo=t,
+                intensidade=intensidade_fx
+            )
+
+            self.visual_fx.aplicar_particulas(
+                imagem,
+                tempo=t,
+                quantidade=30,
+                intensidade=intensidade_fx
+            )
 
             for camada in sorted(cena.camadas, key=lambda c: c.z_index):
                 if not (camada.inicio <= t <= camada.fim):
@@ -57,12 +89,238 @@ class TimelineCompositor:
                 elif camada.tipo == LayerType.MASCOT:
                     self._mascote(imagem, camada, progresso)
 
-            quadros.append(np.asarray(imagem.convert("RGB")))
+            caixas_cartoes = [
+                tuple(
+                    camada.propriedades.get(
+                        "caixa"
+                    )
+                )
+                for camada in cena.camadas
+                if (
+                    camada.tipo == LayerType.CARD
+                    and camada.propriedades.get(
+                        "caixa"
+                    )
+                    and not camada.propriedades.get(
+                        "resultado",
+                        False
+                    )
+                )
+            ]
+
+            if caixas_cartoes:
+                self.visual_fx.aplicar_reflexo_cartoes(
+                    imagem,
+                    tempo=t,
+                    caixas=caixas_cartoes,
+                    intensidade=0.18
+                )
+
+            self.visual_fx.aplicar_vinheta(
+                imagem,
+                intensidade=0.12
+            )
+
+            imagem = self._aplicar_camera(
+                imagem,
+                cena,
+                t
+            )
+
+            quadros.append(
+                np.asarray(
+                    imagem.convert("RGB")
+                )
+            )
 
         return ImageSequenceClip(
             quadros,
             fps=self.fps,
         ).with_duration(cena.duracao)
+
+    def _aplicar_camera(
+        self,
+        imagem,
+        cena,
+        tempo
+    ):
+        perfil = dict(
+            cena.metadados.get(
+                "camera",
+                {}
+            )
+        )
+
+        if not perfil:
+            return imagem
+
+        duracao = max(
+            float(cena.duracao),
+            0.001
+        )
+
+        progresso = min(
+            max(
+                tempo / duracao,
+                0.0
+            ),
+            1.0
+        )
+
+        zoom_inicial = float(
+            perfil.get(
+                "zoom_inicial",
+                1.0
+            )
+        )
+
+        zoom_final = float(
+            perfil.get(
+                "zoom_final",
+                1.02
+            )
+        )
+
+        zoom = (
+            zoom_inicial
+            + (
+                zoom_final
+                - zoom_inicial
+            )
+            * progresso
+        )
+
+        pan_x_total = int(
+            perfil.get(
+                "pan_x",
+                0
+            )
+        )
+
+        pan_y_total = int(
+            perfil.get(
+                "pan_y",
+                0
+            )
+        )
+
+        pan_x = int(
+            pan_x_total
+            * progresso
+        )
+
+        pan_y = int(
+            pan_y_total
+            * progresso
+        )
+
+        rotacao_total = float(
+            perfil.get(
+                "rotacao",
+                0.0
+            )
+        )
+
+        rotacao = (
+            rotacao_total
+            * math.sin(
+                progresso
+                * math.pi
+            )
+        )
+
+        pulso_brilho = float(
+            perfil.get(
+                "pulso_brilho",
+                0.0
+            )
+        )
+
+        largura = max(
+            int(
+                round(
+                    cena.largura
+                    * zoom
+                )
+            ),
+            cena.largura
+        )
+
+        altura = max(
+            int(
+                round(
+                    cena.altura
+                    * zoom
+                )
+            ),
+            cena.altura
+        )
+
+        camera = imagem.resize(
+            (largura, altura),
+            Image.Resampling.LANCZOS
+        )
+
+        x = (
+            largura
+            - cena.largura
+        ) // 2 + pan_x
+
+        y = (
+            altura
+            - cena.altura
+        ) // 2 + pan_y
+
+        x = max(
+            0,
+            min(
+                largura - cena.largura,
+                x
+            )
+        )
+
+        y = max(
+            0,
+            min(
+                altura - cena.altura,
+                y
+            )
+        )
+
+        camera = camera.crop(
+            (
+                x,
+                y,
+                x + cena.largura,
+                y + cena.altura
+            )
+        )
+
+        if abs(rotacao) > 0.001:
+            camera = camera.rotate(
+                rotacao,
+                resample=Image.Resampling.BICUBIC,
+                expand=False
+            )
+
+        if pulso_brilho > 0:
+            brilho = (
+                1.0
+                + pulso_brilho
+                * math.sin(
+                    progresso
+                    * math.pi
+                    * 2
+                )
+            )
+
+            camera = ImageEnhance.Brightness(
+                camera
+            ).enhance(
+                brilho
+            )
+
+        return camera
 
     def _fundo(self, cena, t):
         fundo = next(
@@ -191,44 +449,100 @@ class TimelineCompositor:
             )
         )
 
-    def _cartao(self, imagem, camada, progresso):
-        x1, y1, x2, y2 = map(int, camada.propriedades["caixa"])
-        deslocamento_entrada = self._deslocamento_entrada(
-            camada,
-            progresso
+    def _cartao(
+        self,
+        imagem,
+        camada,
+        progresso
+    ):
+        x1, y1, x2, y2 = map(
+            int,
+            camada.propriedades[
+                "caixa"
+            ]
+        )
+
+        deslocamento_entrada = (
+            self._deslocamento_entrada(
+                camada,
+                progresso
+            )
         )
 
         x1 += deslocamento_entrada
         x2 += deslocamento_entrada
 
-        cor = tuple(camada.propriedades.get("cor", (255, 85, 115)))
+        cor = tuple(
+            camada.propriedades.get(
+                "cor",
+                (255, 85, 115)
+            )
+        )
+
         resultado = bool(
-            camada.propriedades.get("resultado", False)
+            camada.propriedades.get(
+                "resultado",
+                False
+            )
         )
 
         if resultado:
             escala = min(
-                max(progresso / 0.22, 0.15),
-                1.0,
+                max(
+                    progresso / 0.22,
+                    0.15
+                ),
+                1.0
             )
 
-            centro_x = (x1 + x2) / 2
-            centro_y = (y1 + y2) / 2
+            centro_x = (
+                x1 + x2
+            ) / 2
 
-            largura = (x2 - x1) * escala
-            altura = (y2 - y1) * escala
+            centro_y = (
+                y1 + y2
+            ) / 2
 
-            x1 = int(centro_x - largura / 2)
-            x2 = int(centro_x + largura / 2)
-            y1 = int(centro_y - altura / 2)
-            y2 = int(centro_y + altura / 2)
+            largura = (
+                x2 - x1
+            ) * escala
+
+            altura = (
+                y2 - y1
+            ) * escala
+
+            x1 = int(
+                centro_x - largura / 2
+            )
+
+            x2 = int(
+                centro_x + largura / 2
+            )
+
+            y1 = int(
+                centro_y - altura / 2
+            )
+
+            y2 = int(
+                centro_y + altura / 2
+            )
+
             dy = 0
 
         else:
-            onda = math.sin(progresso * math.pi * 2)
-            dy = int(3 * onda)
+            onda = math.sin(
+                progresso
+                * math.pi
+                * 2
+            )
 
-            if camada.nome.endswith("_b"):
+            dy = int(
+                3 * onda
+            )
+
+            if camada.nome.endswith(
+                "_b"
+            ):
                 dy *= -1
 
         raio = int(
@@ -238,65 +552,227 @@ class TimelineCompositor:
             )
         )
 
-        desenho = ImageDraw.Draw(imagem)
-        desenho.rounded_rectangle(
-            (x1 + 10, y1 + 14 + dy, x2 + 10, y2 + 14 + dy),
-            radius=raio,
-            fill=(0, 0, 0, 75),
-        )
-        desenho.rounded_rectangle(
-            (x1, y1 + dy, x2, y2 + dy),
-            radius=raio,
-            fill=(*cor, 255),
-            outline=(255, 255, 255, 255),
-            width=5,
+        camada_cartao = Image.new(
+            "RGBA",
+            imagem.size,
+            (0, 0, 0, 0)
         )
 
-    def _imagem(self, imagem, camada, progresso, cena):
+        desenho = ImageDraw.Draw(
+            camada_cartao
+        )
+
+        desenho.rounded_rectangle(
+            (
+                x1 + 10,
+                y1 + 14 + dy,
+                x2 + 10,
+                y2 + 14 + dy
+            ),
+            radius=raio,
+            fill=(0, 0, 0, 75)
+        )
+
+        desenho.rounded_rectangle(
+            (
+                x1,
+                y1 + dy,
+                x2,
+                y2 + dy
+            ),
+            radius=raio,
+            fill=(*cor, 255),
+            outline=(
+                255,
+                255,
+                255,
+                255
+            ),
+            width=5
+        )
+
+        intensidade = (
+            self.motion_blur
+            .intensidade_entrada(
+                progresso,
+                limite=0.72
+            )
+            if deslocamento_entrada
+            else 0.0
+        )
+
+        if intensidade > 0.01:
+            camada_cartao = (
+                self.motion_blur
+                .aplicar_horizontal(
+                    camada_cartao,
+                    intensidade=intensidade,
+                    direcao=(
+                        -1
+                        if camada.nome.endswith(
+                            "_a"
+                        )
+                        else 1
+                    )
+                )
+            )
+
+        imagem.alpha_composite(
+            camada_cartao
+        )
+
+    def _imagem(
+        self,
+        imagem,
+        camada,
+        progresso,
+        cena
+    ):
         if not camada.origem:
             return
-        caminho = Path(camada.origem)
+
+        caminho = Path(
+            camada.origem
+        )
+
         if not caminho.exists():
             return
 
-        nome_cartao = "cartao_a" if camada.nome.endswith("_a") else "cartao_b"
-        card = next((c for c in cena.camadas if c.nome == nome_cartao), None)
+        nome_cartao = (
+            "cartao_a"
+            if camada.nome.endswith(
+                "_a"
+            )
+            else "cartao_b"
+        )
+
+        card = next(
+            (
+                item
+                for item in cena.camadas
+                if item.nome
+                == nome_cartao
+            ),
+            None
+        )
+
         if card is None:
             return
 
-        x1, y1, x2, y2 = map(int, card.propriedades["caixa"])
+        x1, y1, x2, y2 = map(
+            int,
+            card.propriedades[
+                "caixa"
+            ]
+        )
 
         try:
-            item = Image.open(caminho).convert("RGBA")
+            item = Image.open(
+                caminho
+            ).convert(
+                "RGBA"
+            )
+
         except OSError:
             return
 
-        fase = math.pi if camada.nome.endswith("_b") else 0
-        escala = 1 + 0.018 * math.sin(progresso * math.pi * 2 + fase)
+        fase = (
+            math.pi
+            if camada.nome.endswith(
+                "_b"
+            )
+            else 0
+        )
+
+        escala = (
+            1.0
+            + 0.018
+            * math.sin(
+                progresso
+                * math.pi
+                * 2
+                + fase
+            )
+        )
 
         item = ImageOps.contain(
             item,
             (
-                int((x2 - x1 - 90) * escala),
-                int((y2 - y1 - 115) * escala),
+                max(
+                    int(
+                        (
+                            x2 - x1 - 110
+                        )
+                        * escala
+                    ),
+                    20
+                ),
+                max(
+                    int(
+                        (
+                            y2 - y1 - 135
+                        )
+                        * escala
+                    ),
+                    20
+                )
             ),
-            method=Image.Resampling.LANCZOS,
+            method=Image.Resampling.LANCZOS
         )
 
-        deslocamento_entrada = self._deslocamento_entrada(
-            camada,
-            progresso
+        item = (
+            self.image_depth
+            .preparar(
+                item,
+                padding=10,
+                raio=18
+            )
         )
+
+        deslocamento_entrada = (
+            self._deslocamento_entrada(
+                camada,
+                progresso
+            )
+        )
+
+        intensidade = (
+            self.motion_blur
+            .intensidade_entrada(
+                progresso,
+                limite=0.72
+            )
+            if deslocamento_entrada
+            else 0.0
+        )
+
+        if intensidade > 0.01:
+            item = (
+                self.motion_blur
+                .aplicar_horizontal(
+                    item,
+                    intensidade=intensidade,
+                    direcao=(
+                        -1
+                        if camada.nome.endswith(
+                            "_a"
+                        )
+                        else 1
+                    )
+                )
+            )
 
         x = (
-            (x1 + x2) // 2
+            (
+                x1 + x2
+            ) // 2
             - item.width // 2
             + deslocamento_entrada
         )
 
         y = (
             y1
-            + 58
+            + 46
             + int(
                 4
                 * math.sin(
@@ -307,7 +783,11 @@ class TimelineCompositor:
                 )
             )
         )
-        imagem.alpha_composite(item, (x, y))
+
+        imagem.alpha_composite(
+            item,
+            (x, y)
+        )
 
     def _texto(
         self,
