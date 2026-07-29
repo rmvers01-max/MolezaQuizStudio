@@ -24,6 +24,7 @@ from ..effects import (
 from ..widgets import CardStyleFactory, MascotWidget
 from .visual_presets import VisualPresetRegistry
 from .layout_variations import LayoutVariationRegistry
+from .premium_themes import PremiumThemeRegistry
 from ..timeline import (
     PreferenceTimelineFactory,
     TimelineCompositor,
@@ -124,6 +125,11 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             )
         )
         self.preset_registry = VisualPresetRegistry()
+        self.premium_theme_registry = PremiumThemeRegistry()
+        self.premium_theme = (
+            self.premium_theme_registry
+            .obter("moleza_vibrante")
+        )
         self.layout_registry = LayoutVariationRegistry()
         self.layout_atual = self.layout_registry.obter(1)
 
@@ -263,7 +269,8 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
                 numero=numero,
                 layout=self.layout_atual,
                 preset=self.preset_visual,
-                duracao=duracao_entrada
+                duracao=duracao_entrada,
+                premium_theme=self.premium_theme
             )
         )
 
@@ -322,7 +329,8 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
                     duracao=restante_pergunta,
                     layout=self.layout_atual,
                     preset=self.preset_visual,
-                    caminho_frame=caminho_frame_pergunta
+                    caminho_frame=caminho_frame_pergunta,
+                    premium_theme=self.premium_theme
                 )
             )
 
@@ -361,7 +369,8 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
                     contador=contador,
                     layout=self.layout_atual,
                     preset=self.preset_visual,
-                    duracao=1.0
+                    duracao=1.0,
+                    premium_theme=self.premium_theme
                 )
             )
 
@@ -446,7 +455,8 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
                 numero=numero,
                 layout=self.layout_atual,
                 preset=self.preset_visual,
-                duracao=duracao_escolha
+                duracao=duracao_escolha,
+                premium_theme=self.premium_theme
             )
         )
 
@@ -876,6 +886,13 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         self.preset_visual = (
             self.preset_registry
             .selecionar_por_tema(
+                tema
+            )
+        )
+
+        self.premium_theme = (
+            self.premium_theme_registry
+            .selecionar(
                 tema
             )
         )

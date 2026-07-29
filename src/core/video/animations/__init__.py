@@ -9,6 +9,8 @@ from .scene_clips import SceneClipFactory
 from .layered_scene import LayeredSceneAnimator
 
 __all__ = [
+    "CharacterAnimationEngine",
+    "SmartEasing",
     "CameraProfile",
     "CameraProfileRegistry",
     "CameraMotionFactory",
@@ -36,3 +38,7 @@ from .card_motion import CardMotionFactory
 from .scene_engine import ProfessionalSceneEngine
 
 from .camera_profiles import CameraProfile, CameraProfileRegistry
+
+from .smart_easing import SmartEasing
+
+from .character_engine import CharacterAnimationEngine

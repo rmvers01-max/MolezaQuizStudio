@@ -29,6 +29,7 @@ class PreferenceTimelineFactory:
         layout,
         preset,
         caminho_frame=None,
+        premium_theme=None,
     ):
         builder = TimelineSceneBuilder(
             nome=f"pergunta_{numero:03d}",
@@ -246,6 +247,8 @@ class PreferenceTimelineFactory:
             duracao=duracao,
             propriedades={
                 "pose": "idle",
+                "comportamento": "idle",
+                "intensidade": 1.0,
                 "posicao": "inferior_direita",
             },
             animacoes=[
@@ -265,6 +268,73 @@ class PreferenceTimelineFactory:
             "intensidade_fx": (
                 preset.intensidade_particulas
             ),
+            "premium_theme": {
+                "nome": (
+                    premium_theme.nome
+                    if premium_theme
+                    else "Moleza Vibrante"
+                ),
+                "codigo": (
+                    premium_theme.codigo
+                    if premium_theme
+                    else "moleza_vibrante"
+                ),
+                "familia_fonte": (
+                    premium_theme.familia_fonte
+                    if premium_theme
+                    else "rounded"
+                ),
+                "titulo_tamanho": (
+                    premium_theme.titulo_tamanho
+                    if premium_theme
+                    else 43
+                ),
+                "alternativa_tamanho": (
+                    premium_theme.alternativa_tamanho
+                    if premium_theme
+                    else 28
+                ),
+                "arredondamento_cartao": (
+                    premium_theme.arredondamento_cartao
+                    if premium_theme
+                    else 34
+                ),
+                "particulas": (
+                    premium_theme.particulas
+                    if premium_theme
+                    else "sparkles"
+                ),
+                "efeito_ambiente": (
+                    premium_theme.efeito_ambiente
+                    if premium_theme
+                    else "mixed_glow"
+                ),
+                "estilo_camera": (
+                    premium_theme.estilo_camera
+                    if premium_theme
+                    else "equilibrada"
+                ),
+                "intensidade_fx": (
+                    premium_theme.intensidade_fx
+                    if premium_theme
+                    else 0.55
+                ),
+                "intensidade_glow": (
+                    premium_theme.intensidade_glow
+                    if premium_theme
+                    else 0.36
+                ),
+                "cor_texto": (
+                    premium_theme.cor_texto
+                    if premium_theme
+                    else (255, 255, 255)
+                ),
+                "cor_secundaria": (
+                    premium_theme.cor_secundaria
+                    if premium_theme
+                    else (240, 235, 255)
+                ),
+            },
             "camera": {
                 "nome": self.camera_profiles.obter(numero).nome,
                 "zoom_inicial": self.camera_profiles.obter(numero).zoom_inicial,
@@ -287,6 +357,7 @@ class PreferenceTimelineFactory:
         layout,
         preset,
         duracao=1.0,
+        premium_theme=None,
     ):
         builder = TimelineSceneBuilder(
             nome=f"pergunta_{numero:03d}_contador_{contador}",
@@ -395,6 +466,8 @@ class PreferenceTimelineFactory:
             duracao,
             propriedades={
                 "pose": "thinking",
+                "comportamento": "thinking",
+                "intensidade": 1.1,
                 "posicao": "inferior_direita",
             },
         )
@@ -409,6 +482,73 @@ class PreferenceTimelineFactory:
             "intensidade_fx": (
                 preset.intensidade_particulas
             ),
+            "premium_theme": {
+                "nome": (
+                    premium_theme.nome
+                    if premium_theme
+                    else "Moleza Vibrante"
+                ),
+                "codigo": (
+                    premium_theme.codigo
+                    if premium_theme
+                    else "moleza_vibrante"
+                ),
+                "familia_fonte": (
+                    premium_theme.familia_fonte
+                    if premium_theme
+                    else "rounded"
+                ),
+                "titulo_tamanho": (
+                    premium_theme.titulo_tamanho
+                    if premium_theme
+                    else 43
+                ),
+                "alternativa_tamanho": (
+                    premium_theme.alternativa_tamanho
+                    if premium_theme
+                    else 28
+                ),
+                "arredondamento_cartao": (
+                    premium_theme.arredondamento_cartao
+                    if premium_theme
+                    else 34
+                ),
+                "particulas": (
+                    premium_theme.particulas
+                    if premium_theme
+                    else "sparkles"
+                ),
+                "efeito_ambiente": (
+                    premium_theme.efeito_ambiente
+                    if premium_theme
+                    else "mixed_glow"
+                ),
+                "estilo_camera": (
+                    premium_theme.estilo_camera
+                    if premium_theme
+                    else "equilibrada"
+                ),
+                "intensidade_fx": (
+                    premium_theme.intensidade_fx
+                    if premium_theme
+                    else 0.55
+                ),
+                "intensidade_glow": (
+                    premium_theme.intensidade_glow
+                    if premium_theme
+                    else 0.36
+                ),
+                "cor_texto": (
+                    premium_theme.cor_texto
+                    if premium_theme
+                    else (255, 255, 255)
+                ),
+                "cor_secundaria": (
+                    premium_theme.cor_secundaria
+                    if premium_theme
+                    else (240, 235, 255)
+                ),
+            },
             "camera": {
                 "nome": self.camera_profiles.obter(numero).nome,
                 "zoom_inicial": self.camera_profiles.obter(numero).zoom_inicial,
@@ -430,6 +570,7 @@ class PreferenceTimelineFactory:
         layout,
         preset,
         duracao=2.2,
+        premium_theme=None,
     ):
         builder = TimelineSceneBuilder(
             nome=f"pergunta_{numero:03d}_resultado",
@@ -546,6 +687,8 @@ class PreferenceTimelineFactory:
             duracao,
             propriedades={
                 "pose": "celebrate",
+                "comportamento": "celebrate",
+                "intensidade": 1.15,
                 "posicao": "inferior_direita",
             },
         )
@@ -559,6 +702,73 @@ class PreferenceTimelineFactory:
             "intensidade_fx": (
                 preset.intensidade_particulas
             ),
+            "premium_theme": {
+                "nome": (
+                    premium_theme.nome
+                    if premium_theme
+                    else "Moleza Vibrante"
+                ),
+                "codigo": (
+                    premium_theme.codigo
+                    if premium_theme
+                    else "moleza_vibrante"
+                ),
+                "familia_fonte": (
+                    premium_theme.familia_fonte
+                    if premium_theme
+                    else "rounded"
+                ),
+                "titulo_tamanho": (
+                    premium_theme.titulo_tamanho
+                    if premium_theme
+                    else 43
+                ),
+                "alternativa_tamanho": (
+                    premium_theme.alternativa_tamanho
+                    if premium_theme
+                    else 28
+                ),
+                "arredondamento_cartao": (
+                    premium_theme.arredondamento_cartao
+                    if premium_theme
+                    else 34
+                ),
+                "particulas": (
+                    premium_theme.particulas
+                    if premium_theme
+                    else "sparkles"
+                ),
+                "efeito_ambiente": (
+                    premium_theme.efeito_ambiente
+                    if premium_theme
+                    else "mixed_glow"
+                ),
+                "estilo_camera": (
+                    premium_theme.estilo_camera
+                    if premium_theme
+                    else "equilibrada"
+                ),
+                "intensidade_fx": (
+                    premium_theme.intensidade_fx
+                    if premium_theme
+                    else 0.55
+                ),
+                "intensidade_glow": (
+                    premium_theme.intensidade_glow
+                    if premium_theme
+                    else 0.36
+                ),
+                "cor_texto": (
+                    premium_theme.cor_texto
+                    if premium_theme
+                    else (255, 255, 255)
+                ),
+                "cor_secundaria": (
+                    premium_theme.cor_secundaria
+                    if premium_theme
+                    else (240, 235, 255)
+                ),
+            },
             "camera": {
                 "nome": self.camera_profiles.obter(numero).nome,
                 "zoom_inicial": self.camera_profiles.obter(numero).zoom_inicial,
@@ -580,6 +790,7 @@ class PreferenceTimelineFactory:
         layout,
         preset,
         duracao=1.1,
+        premium_theme=None,
     ):
         builder = TimelineSceneBuilder(
             nome=f"pergunta_{numero:03d}_entrada",
@@ -617,6 +828,8 @@ class PreferenceTimelineFactory:
                 "cor": preset.paletas_perguntas[0]["a"],
                 "entrada": "esquerda",
                 "duracao_entrada": 0.72,
+                "easing_entrada": "ease_out_back",
+                "overshoot": 1.45,
             },
         )
 
@@ -630,6 +843,8 @@ class PreferenceTimelineFactory:
             propriedades={
                 "entrada": "esquerda",
                 "duracao_entrada": 0.72,
+                "easing_entrada": "ease_out_back",
+                "overshoot": 1.45,
             },
         )
 
@@ -648,6 +863,8 @@ class PreferenceTimelineFactory:
                 "caixa": layout.caixa_a,
                 "entrada": "esquerda",
                 "duracao_entrada": 0.72,
+                "easing_entrada": "ease_out_back",
+                "overshoot": 1.45,
             },
         )
 
@@ -663,6 +880,7 @@ class PreferenceTimelineFactory:
                 "cor": preset.paletas_perguntas[0]["b"],
                 "entrada": "direita",
                 "duracao_entrada": 0.72,
+                "easing_entrada": "ease_out_elastic",
             },
         )
 
@@ -676,6 +894,7 @@ class PreferenceTimelineFactory:
             propriedades={
                 "entrada": "direita",
                 "duracao_entrada": 0.72,
+                "easing_entrada": "ease_out_elastic",
             },
         )
 
@@ -694,6 +913,7 @@ class PreferenceTimelineFactory:
                 "caixa": layout.caixa_b,
                 "entrada": "direita",
                 "duracao_entrada": 0.72,
+                "easing_entrada": "ease_out_elastic",
             },
         )
 
@@ -708,6 +928,7 @@ class PreferenceTimelineFactory:
                 "caixa": layout.caixa_ou,
                 "entrada": "pop",
                 "duracao_entrada": 0.5,
+                "easing_entrada": "ease_out_bounce",
             },
         )
 
@@ -732,7 +953,17 @@ class PreferenceTimelineFactory:
             0,
             duracao,
             propriedades={
-                "pose": "idle",
+                "pose": (
+                    "point_left"
+                    if numero % 2 == 1
+                    else "point_right"
+                ),
+                "comportamento": (
+                    "point_left"
+                    if numero % 2 == 1
+                    else "point_right"
+                ),
+                "intensidade": 1.0,
                 "posicao": "inferior_direita",
             },
         )

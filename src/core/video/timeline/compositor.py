@@ -8,7 +8,13 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageEnhance
 from moviepy import ImageSequenceClip
 
 from .models import LayerType
+from ..animations import (
+    CharacterAnimationEngine,
+    SmartEasing,
+)
 from ..effects import (
+    CardMaterialEngine,
+    CinematicFXEngine,
     ImageDepthFactory,
     MotionBlurEngine,
     VisualFXEngine,
@@ -21,6 +27,9 @@ class TimelineCompositor:
         self.visual_fx = VisualFXEngine()
         self.motion_blur = MotionBlurEngine()
         self.image_depth = ImageDepthFactory()
+        self.character_engine = CharacterAnimationEngine()
+        self.cinematic_fx = CinematicFXEngine()
+        self.card_material = CardMaterialEngine()
 
     def renderizar(self, cena):
         cena.validar()
@@ -28,17 +37,32 @@ class TimelineCompositor:
         self.visual_fx.largura = cena.largura
         self.visual_fx.altura = cena.altura
 
+        self.cinematic_fx.largura = cena.largura
+        self.cinematic_fx.altura = cena.altura
+
+        self.card_material.largura = cena.largura
+        self.card_material.altura = cena.altura
+
         total = max(int(round(cena.duracao * self.fps)), 2)
         quadros = []
 
         for indice in range(total):
             t = indice / self.fps
+            self._tema_atual = dict(
+                cena.metadados.get(
+                    "premium_theme",
+                    {}
+                )
+            )
             imagem = self._fundo(cena, t)
 
             intensidade_fx = float(
-                cena.metadados.get(
+                self._tema_atual.get(
                     "intensidade_fx",
-                    0.55
+                    cena.metadados.get(
+                        "intensidade_fx",
+                        0.55
+                    )
                 )
             )
 
@@ -89,33 +113,6 @@ class TimelineCompositor:
                 elif camada.tipo == LayerType.MASCOT:
                     self._mascote(imagem, camada, progresso)
 
-            caixas_cartoes = [
-                tuple(
-                    camada.propriedades.get(
-                        "caixa"
-                    )
-                )
-                for camada in cena.camadas
-                if (
-                    camada.tipo == LayerType.CARD
-                    and camada.propriedades.get(
-                        "caixa"
-                    )
-                    and not camada.propriedades.get(
-                        "resultado",
-                        False
-                    )
-                )
-            ]
-
-            if caixas_cartoes:
-                self.visual_fx.aplicar_reflexo_cartoes(
-                    imagem,
-                    tempo=t,
-                    caixas=caixas_cartoes,
-                    intensidade=0.18
-                )
-
             self.visual_fx.aplicar_vinheta(
                 imagem,
                 intensidade=0.12
@@ -125,6 +122,23 @@ class TimelineCompositor:
                 imagem,
                 cena,
                 t
+            )
+
+            intensidade_cinematica = float(
+                self._tema_atual.get(
+                    "intensidade_glow",
+                    0.36
+                )
+            )
+
+            imagem = self.cinematic_fx.aplicar(
+                imagem,
+                tempo=t,
+                intensidade=intensidade_cinematica,
+                estilo=self._tema_atual.get(
+                    "efeito_ambiente",
+                    "mixed_glow"
+                )
             )
 
             quadros.append(
@@ -422,11 +436,19 @@ class TimelineCompositor:
             1.0
         )
 
-        suavizado = (
-            1.0
-            - pow(
-                1.0 - p,
-                3
+        easing_nome = str(
+            camada.propriedades.get(
+                "easing_entrada",
+                "ease_out_cubic"
+            )
+        )
+
+        suavizado = SmartEasing.aplicar(
+            easing_nome,
+            p,
+            overshoot=camada.propriedades.get(
+                "overshoot",
+                1.70158
             )
         )
 
@@ -512,43 +534,82 @@ class TimelineCompositor:
             ) * escala
 
             x1 = int(
-                centro_x - largura / 2
+                centro_x
+                - largura / 2
             )
 
             x2 = int(
-                centro_x + largura / 2
+                centro_x
+                + largura / 2
             )
 
             y1 = int(
-                centro_y - altura / 2
+                centro_y
+                - altura / 2
             )
 
             y2 = int(
-                centro_y + altura / 2
+                centro_y
+                + altura / 2
             )
 
             dy = 0
 
         else:
+            amplitude_idle = float(
+                camada.propriedades.get(
+                    "idle_amplitude",
+                    3.0
+                )
+            )
+
+            fase_idle = float(
+                camada.propriedades.get(
+                    "idle_fase",
+                    (
+                        math.pi
+                        if camada.nome.endswith(
+                            "_b"
+                        )
+                        else 0.0
+                    )
+                )
+            )
+
             onda = math.sin(
                 progresso
                 * math.pi
                 * 2
+                + fase_idle
             )
 
             dy = int(
-                3 * onda
+                amplitude_idle
+                * onda
             )
 
-            if camada.nome.endswith(
-                "_b"
-            ):
-                dy *= -1
+        tema = dict(
+            getattr(
+                self,
+                "_tema_atual",
+                {}
+            )
+        )
 
         raio = int(
             camada.propriedades.get(
                 "raio",
-                34
+                tema.get(
+                    "arredondamento_cartao",
+                    34
+                )
+            )
+        )
+
+        intensidade_glow = float(
+            tema.get(
+                "intensidade_glow",
+                0.36
             )
         )
 
@@ -558,37 +619,27 @@ class TimelineCompositor:
             (0, 0, 0, 0)
         )
 
-        desenho = ImageDraw.Draw(
-            camada_cartao
-        )
-
-        desenho.rounded_rectangle(
-            (
-                x1 + 10,
-                y1 + 14 + dy,
-                x2 + 10,
-                y2 + 14 + dy
-            ),
-            radius=raio,
-            fill=(0, 0, 0, 75)
-        )
-
-        desenho.rounded_rectangle(
-            (
+        self.card_material.renderizar(
+            imagem_base=camada_cartao,
+            caixa=(
                 x1,
                 y1 + dy,
                 x2,
                 y2 + dy
             ),
-            radius=raio,
-            fill=(*cor, 255),
-            outline=(
-                255,
-                255,
-                255,
-                255
+            cor=cor,
+            progresso=progresso,
+            raio=raio,
+            glow=min(
+                intensidade_glow,
+                0.65
             ),
-            width=5
+            intensidade_reflexo=(
+                0.0
+                if resultado
+                else 0.22
+            ),
+            resultado=resultado
         )
 
         intensidade = (
@@ -620,6 +671,7 @@ class TimelineCompositor:
         imagem.alpha_composite(
             camada_cartao
         )
+
 
     def _imagem(
         self,
@@ -676,17 +728,29 @@ class TimelineCompositor:
         except OSError:
             return
 
-        fase = (
-            math.pi
-            if camada.nome.endswith(
-                "_b"
+        fase = float(
+            camada.propriedades.get(
+                "idle_fase",
+                (
+                    math.pi
+                    if camada.nome.endswith(
+                        "_b"
+                    )
+                    else 0.0
+                )
             )
-            else 0
+        )
+
+        intensidade_respiracao = float(
+            camada.propriedades.get(
+                "breath_intensidade",
+                0.018
+            )
         )
 
         escala = (
             1.0
-            + 0.018
+            + intensidade_respiracao
             * math.sin(
                 progresso
                 * math.pi
@@ -770,11 +834,18 @@ class TimelineCompositor:
             + deslocamento_entrada
         )
 
+        amplitude_idle = float(
+            camada.propriedades.get(
+                "idle_amplitude",
+                4.0
+            )
+        )
+
         y = (
             y1
             + 46
             + int(
-                4
+                amplitude_idle
                 * math.sin(
                     progresso
                     * math.pi
@@ -876,7 +947,19 @@ class TimelineCompositor:
             return
 
         if camada.nome == "titulo":
-            fonte = self._fonte(42, True)
+            fonte = self._fonte(
+                int(
+                    self._tema_atual.get(
+                        "titulo_tamanho",
+                        42
+                    )
+                ),
+                True,
+                familia=self._tema_atual.get(
+                    "familia_fonte",
+                    "rounded"
+                )
+            )
             linhas = self._quebrar(texto, 42)[:2]
             y = 154
             for linha in linhas:
@@ -896,7 +979,19 @@ class TimelineCompositor:
             return
 
         x1, y1, x2, y2 = map(int, caixa)
-        fonte = self._fonte(28, True)
+        fonte = self._fonte(
+            int(
+                self._tema_atual.get(
+                    "alternativa_tamanho",
+                    28
+                )
+            ),
+            True,
+            familia=self._tema_atual.get(
+                "familia_fonte",
+                "rounded"
+            )
+        )
         linhas = self._quebrar(texto, 20)[:2]
         y = y2 - 72
 
@@ -937,7 +1032,26 @@ class TimelineCompositor:
             return
 
         x1, y1, x2, y2 = map(int, caixa)
-        escala = min(max(progresso / 0.35, 0.15), 1.0)
+        easing_nome = str(
+            camada.propriedades.get(
+                "easing_entrada",
+                "ease_out_bounce"
+            )
+        )
+
+        escala = max(
+            SmartEasing.aplicar(
+                easing_nome,
+                min(
+                    max(
+                        progresso / 0.35,
+                        0.0
+                    ),
+                    1.0
+                )
+            ),
+            0.15
+        )
         badge.thumbnail(
             (
                 max(int((x2 - x1) * escala), 1),
@@ -949,40 +1063,66 @@ class TimelineCompositor:
         y = (y1 + y2) // 2 - badge.height // 2
         imagem.alpha_composite(badge, (x, y))
 
-    def _mascote(self, imagem, camada, progresso):
+    def _mascote(
+        self,
+        imagem,
+        camada,
+        progresso
+    ):
         pose = str(
-            camada.propriedades.get("pose", "idle")
+            camada.propriedades.get(
+                "pose",
+                "idle"
+            )
         ).strip().lower()
 
-        candidatos = [
-            Path(f"assets/mascots/{pose}.png"),
-            Path("assets/mascots/idle.png"),
-            Path("assets/mascots/moleza.png"),
-            Path("assets/mascots/mascote.png"),
-            Path("assets/moleza.png"),
-        ]
-        caminho = next((p for p in candidatos if p.exists()), None)
-        if caminho is None:
-            return
+        comportamento = str(
+            camada.propriedades.get(
+                "comportamento",
+                "auto"
+            )
+        ).strip().lower()
 
-        try:
-            mascote = Image.open(caminho).convert("RGBA")
-        except OSError:
-            return
-
-        escala = 1 + 0.025 * math.sin(progresso * math.pi * 2)
-        mascote.thumbnail(
-            (int(185 * escala), int(185 * escala)),
-            Image.Resampling.LANCZOS,
+        intensidade = float(
+            camada.propriedades.get(
+                "intensidade",
+                1.0
+            )
         )
-        x = imagem.width - mascote.width - 28
+
+        (
+            mascote,
+            deslocamento_x,
+            deslocamento_y
+        ) = self.character_engine.renderizar(
+            pose=pose,
+            progresso=progresso,
+            tamanho_base=(185, 185),
+            comportamento=comportamento,
+            intensidade=intensidade
+        )
+
+        if mascote is None:
+            return
+
+        x = (
+            imagem.width
+            - mascote.width
+            - 28
+            + deslocamento_x
+        )
+
         y = (
             imagem.height
             - mascote.height
             - 18
-            + int(5 * math.sin(progresso * math.pi * 2))
+            + deslocamento_y
         )
-        imagem.alpha_composite(mascote, (x, y))
+
+        imagem.alpha_composite(
+            mascote,
+            (x, y)
+        )
 
 
     def _efeito(
@@ -1137,16 +1277,52 @@ class TimelineCompositor:
             fill=(67, 43, 120, 255),
         )
 
-    def _fonte(self, tamanho, negrito=False):
-        nomes = (
-            ["arialbd.ttf", "calibrib.ttf"]
-            if negrito
-            else ["arial.ttf", "calibri.ttf"]
+    def _fonte(
+        self,
+        tamanho,
+        negrito=False,
+        familia="rounded"
+    ):
+        familias = {
+            "rounded": (
+                ["arialbd.ttf", "calibrib.ttf"]
+                if negrito
+                else ["arial.ttf", "calibri.ttf"]
+            ),
+            "tech": (
+                ["segoeuib.ttf", "arialbd.ttf"]
+                if negrito
+                else ["segoeui.ttf", "arial.ttf"]
+            ),
+            "display": (
+                ["impact.ttf", "arialbd.ttf"]
+                if negrito
+                else ["arial.ttf", "calibri.ttf"]
+            ),
+            "elegant": (
+                ["georgiab.ttf", "timesbd.ttf"]
+                if negrito
+                else ["georgia.ttf", "times.ttf"]
+            ),
+        }
+
+        nomes = familias.get(
+            str(familia).lower(),
+            familias["rounded"]
         )
+
         for nome in nomes:
-            caminho = Path("C:/Windows/Fonts") / nome
+            caminho = (
+                Path("C:/Windows/Fonts")
+                / nome
+            )
+
             if caminho.exists():
-                return ImageFont.truetype(str(caminho), tamanho)
+                return ImageFont.truetype(
+                    str(caminho),
+                    tamanho
+                )
+
         return ImageFont.load_default()
 
     def _quebrar(self, texto, largura):

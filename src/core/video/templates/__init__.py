@@ -6,6 +6,8 @@ from .preference_schema import CAMPOS_DE_IMAGEM_ACEITOS, exemplo_pergunta_com_im
 from .registry import VideoTemplateRegistry
 
 __all__ = [
+    "PremiumTheme",
+    "PremiumThemeRegistry",
     "LayoutVariation",
     "LayoutVariationRegistry",
     "VisualPreset",
@@ -23,3 +25,5 @@ __all__ = [
 from .visual_presets import VisualPreset, VisualPresetRegistry
 
 from .layout_variations import LayoutVariation, LayoutVariationRegistry
+
+from .premium_themes import PremiumTheme, PremiumThemeRegistry

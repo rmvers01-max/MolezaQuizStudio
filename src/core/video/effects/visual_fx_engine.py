@@ -193,76 +193,14 @@ class VisualFXEngine:
         caixas,
         intensidade=0.24,
     ):
-        camada = Image.new(
-            "RGBA",
-            imagem.size,
-            (0, 0, 0, 0),
-        )
+        """
+        Mantido apenas por compatibilidade.
 
-        desenho = ImageDraw.Draw(
-            camada
-        )
-
-        progresso = (
-            tempo * 0.45
-        ) % 1.0
-
-        for caixa in caixas:
-            x1, y1, x2, y2 = caixa
-
-            largura = (
-                x2 - x1
-            )
-
-            centro = (
-                x1
-                - 140
-                + (
-                    largura
-                    + 280
-                )
-                * progresso
-            )
-
-            desenho.polygon(
-                [
-                    (
-                        centro - 70,
-                        y1,
-                    ),
-                    (
-                        centro,
-                        y1,
-                    ),
-                    (
-                        centro + 90,
-                        y2,
-                    ),
-                    (
-                        centro + 20,
-                        y2,
-                    ),
-                ],
-                fill=(
-                    255,
-                    255,
-                    255,
-                    int(
-                        255
-                        * intensidade
-                    ),
-                ),
-            )
-
-        camada = camada.filter(
-            ImageFilter.GaussianBlur(
-                radius=14
-            )
-        )
-
-        imagem.alpha_composite(
-            camada
-        )
+        O reflexo dos cartões agora é responsabilidade do
+        CardMaterialEngine, que aplica máscara arredondada e impede
+        qualquer vazamento pelas bordas.
+        """
+        return imagem
 
     def aplicar_vinheta(
         self,

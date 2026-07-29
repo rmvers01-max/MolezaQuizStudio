@@ -1,6 +1,8 @@
 from .sound_factory import SoundEffectFactory
 
 __all__ = [
+    "CardMaterialEngine",
+    "CinematicFXEngine",
     "MotionBlurEngine",
     "ImageDepthFactory",
     "VisualFXEngine",
@@ -18,3 +20,7 @@ from .visual_fx_engine import VisualFXEngine
 
 from .motion_blur import MotionBlurEngine
 from .image_depth import ImageDepthFactory
+
+from .cinematic_fx import CinematicFXEngine
+
+from .card_material_engine import CardMaterialEngine
