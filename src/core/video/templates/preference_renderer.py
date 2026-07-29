@@ -7,7 +7,10 @@ from moviepy import AudioFileClip, ImageClip
 
 from ..animations import (
     AnimatedBackgroundFactory,
+    CameraMotionFactory,
+    CardMotionFactory,
     MascotAnimationFactory,
+    ProfessionalSceneEngine,
     LayeredSceneAnimator,
     SceneClipFactory,
     TransitionFactory,
@@ -16,6 +19,7 @@ from ..effects import (
     ConfettiFactory,
     SoundEffectFactory,
     SparklesFactory,
+    LightSweepFactory,
 )
 from ..widgets import MascotWidget
 from .visual_presets import VisualPresetRegistry
@@ -86,6 +90,32 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         )
 
         self.total_perguntas_contexto = 1
+
+        self.camera_factory = CameraMotionFactory(
+            largura=self.largura,
+            altura=self.altura,
+            fps=18
+        )
+
+        self.card_motion_factory = CardMotionFactory(
+            largura=self.largura,
+            altura=self.altura,
+            fps=18
+        )
+
+        self.light_sweep_factory = LightSweepFactory(
+            largura=self.largura,
+            altura=self.altura,
+            fps=18
+        )
+
+        self.professional_scene_engine = (
+            ProfessionalSceneEngine(
+                camera_factory=self.camera_factory,
+                card_factory=self.card_motion_factory,
+                light_factory=self.light_sweep_factory
+            )
+        )
         self.preset_registry = VisualPresetRegistry()
         self.preset_visual = (
             self.preset_registry
@@ -115,6 +145,15 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
 
         self.sparkles_factory.largura = self.largura
         self.sparkles_factory.altura = self.altura
+
+        self.camera_factory.largura = self.largura
+        self.camera_factory.altura = self.altura
+
+        self.card_motion_factory.largura = self.largura
+        self.card_motion_factory.altura = self.altura
+
+        self.light_sweep_factory.largura = self.largura
+        self.light_sweep_factory.altura = self.altura
 
     def _criar_clips_da_pergunta(
         self,
@@ -278,29 +317,16 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         )
 
         if restante_pergunta > 0.01:
-            if mascote_idle is not None:
-                clips_video.append(
-                    self.sparkles_factory.aplicar(
-                        caminho_frame=caminho_frame_pergunta,
-                        duracao=restante_pergunta,
-                        intensidade=(
-                            self.preset_visual
-                            .intensidade_particulas
-                        )
+            clips_video.append(
+                self.professional_scene_engine.criar_cena_pergunta(
+                    caminho_frame=caminho_frame_pergunta,
+                    duracao=restante_pergunta,
+                    zoom_final=(
+                        self.preset_visual
+                        .zoom_cena
                     )
                 )
-            else:
-                clips_video.append(
-                    self.scene_factory.criar_movimento_suave(
-                        caminho_imagem=caminho_frame_pergunta,
-                        duracao=restante_pergunta,
-                        zoom_inicial=1.0,
-                        zoom_final=(
-                            self.preset_visual
-                            .zoom_cena
-                        )
-                    )
-                )
+            )
 
         tempo_depois_pergunta = (
             tempo_inicio
@@ -335,27 +361,13 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
                 )
             )
 
-            if mascote_pensando is not None:
-                clips_video.append(
-                    self.sparkles_factory.aplicar(
-                        caminho_frame=caminho_contagem,
-                        duracao=1.0,
-                        intensidade=min(
-                            self.preset_visual
-                            .intensidade_particulas
-                            + 0.15,
-                            1.0
-                        )
-                    )
+            clips_video.append(
+                self.professional_scene_engine.criar_cena_contagem(
+                    caminho_frame=caminho_contagem,
+                    duracao=1.0,
+                    zoom_final=1.01
                 )
-            else:
-                clips_video.append(
-                    self.scene_factory.criar_pulso(
-                        caminho_imagem=caminho_contagem,
-                        duracao=1.0,
-                        intensidade=0.012
-                    )
-                )
+            )
 
             clips_audio.append(
                 AudioFileClip(

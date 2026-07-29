@@ -9,6 +9,9 @@ from .scene_clips import SceneClipFactory
 from .layered_scene import LayeredSceneAnimator
 
 __all__ = [
+    "CameraMotionFactory",
+    "CardMotionFactory",
+    "ProfessionalSceneEngine",
     "MascotAnimationFactory",
     "TransitionFactory",
     "AnimatedBackgroundFactory",
@@ -25,3 +28,7 @@ from .transitions import TransitionFactory
 from .animated_background import AnimatedBackgroundFactory
 
 from .mascot_animation import MascotAnimationFactory
+
+from .camera_motion import CameraMotionFactory
+from .card_motion import CardMotionFactory
+from .scene_engine import ProfessionalSceneEngine
