@@ -84,6 +84,15 @@ class VideoGenerator:
             else self.renderer
         )
 
+        if tipo_quiz == "preferencia":
+            renderer.total_perguntas_contexto = len(
+                perguntas_preparadas
+            )
+
+            renderer.definir_preset_automatico(
+                titulo_quiz
+            )
+
         return renderer.gerar_video(
             pasta_projeto=pasta_projeto,
             perguntas=perguntas_preparadas,

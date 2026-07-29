@@ -1,1 +1,3 @@
-"""Componentes visuais reutilizáveis dos templates de vídeo."""
+from .mascot_widget import MascotWidget
+
+__all__ = ["MascotWidget"]

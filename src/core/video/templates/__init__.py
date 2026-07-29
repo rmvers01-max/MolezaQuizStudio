@@ -6,6 +6,8 @@ from .preference_schema import CAMPOS_DE_IMAGEM_ACEITOS, exemplo_pergunta_com_im
 from .registry import VideoTemplateRegistry
 
 __all__ = [
+    "VisualPreset",
+    "VisualPresetRegistry",
     "BaseVideoTemplate",
     "TemplateContext",
     "KnowledgeVideoTemplate",
@@ -15,3 +17,5 @@ __all__ = [
     "exemplo_pergunta_com_imagens",
     "VideoTemplateRegistry",
 ]
+
+from .visual_presets import VisualPreset, VisualPresetRegistry
