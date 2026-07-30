@@ -5,6 +5,14 @@ import textwrap
 
 from PIL import Image, ImageDraw, ImageFont
 
+from .opening import OpeningDirector, OpeningStudio
+from .universal.legacy_motion import (
+    UniversalLegacyMotionRenderer,
+)
+from .universal.scene_renderer import (
+    UniversalSceneRenderer,
+)
+
 from moviepy import (
     AudioFileClip,
     CompositeAudioClip,
@@ -20,6 +28,135 @@ class LegacyVideoGenerator:
         self.largura = 1280
         self.altura = 720
         self.fps = 30
+
+        self.universal_visual_context = {
+            "theme_pack": {
+                "code": "moleza_vibrant",
+                "name": "Moleza Vibrante",
+                "background_top": [90, 55, 180],
+                "background_bottom": [35, 28, 92],
+                "panel_color": [245, 240, 255],
+                "primary_color": [115, 70, 205],
+                "secondary_color": [255, 95, 135],
+                "accent_color": [255, 215, 65],
+                "text_color": [55, 35, 95],
+                "particle_style": "sparkles",
+                "background_activity": 0.55,
+                "motion_intensity": 0.50,
+            }
+        }
+
+        self.legacy_motion = (
+            UniversalLegacyMotionRenderer(
+                largura=self.largura,
+                altura=self.altura,
+                fps=18,
+            )
+        )
+
+        self.universal_scene_renderer = (
+            UniversalSceneRenderer(
+                width=self.largura,
+                height=self.altura,
+                fps=18,
+            )
+        )
+
+        self.total_perguntas_contexto = 1
+
+        self.opening_director = OpeningDirector()
+        self.opening_studio = OpeningStudio(
+            largura=self.largura,
+            altura=self.altura,
+            fps=18,
+        )
+
+    def configurar_direcao_universal(
+        self,
+        creative_plan,
+    ):
+        self.universal_visual_context = dict(
+            creative_plan or {}
+        )
+
+    def _theme_pack(self):
+        return dict(
+            self.universal_visual_context.get(
+                "theme_pack",
+                {}
+            )
+        )
+
+    def _criar_clip_abertura_profissional(
+        self,
+        titulo,
+        quantidade,
+        pasta_frames,
+    ):
+        retention_plan = dict(
+            self.universal_visual_context.get(
+                "retention_plan",
+                {}
+            )
+        )
+
+        direction = (
+            self.opening_director
+            .escolher(
+                titulo=titulo,
+                total_perguntas=quantidade,
+                retention_plan=retention_plan,
+            )
+        )
+
+        pack = self._theme_pack()
+
+        class ThemeProxy:
+            codigo = pack.get(
+                "code",
+                "moleza_vibrante"
+            )
+
+        clip = self.opening_studio.criar_clip(
+            titulo=titulo,
+            direcao=direction,
+            brand_direction=dict(
+                self.universal_visual_context.get(
+                    "brand_direction",
+                    {}
+                )
+            ),
+            premium_theme=ThemeProxy(),
+        )
+
+        return {
+            "clip": clip,
+            "duracao": float(
+                direction["duracao"]
+            ),
+        }
+
+    def _clip_frame_animado(
+        self,
+        caminho,
+        duracao,
+        tipo_cena,
+        numero=0,
+    ):
+        self.legacy_motion.largura = (
+            self.largura
+        )
+        self.legacy_motion.altura = (
+            self.altura
+        )
+
+        return self.legacy_motion.create_clip(
+            image_path=caminho,
+            duration=duracao,
+            scene_kind=tipo_cena,
+            theme_pack=self._theme_pack(),
+            question_number=numero,
+        )
 
     def gerar_video(
         self,
@@ -81,6 +218,11 @@ class LegacyVideoGenerator:
 
         total_perguntas = len(
             perguntas_selecionadas
+        )
+
+        self.total_perguntas_contexto = max(
+            total_perguntas,
+            1
         )
 
         clips_video = []
@@ -228,10 +370,10 @@ class LegacyVideoGenerator:
                 duracao_encerramento = 4
 
                 clips_video.append(
-                    ImageClip(
-                        str(caminho_encerramento)
-                    ).with_duration(
-                        duracao_encerramento
+                    self._clip_frame_animado(
+                        caminho=caminho_encerramento,
+                        duracao=duracao_encerramento,
+                        tipo_cena="outro",
                     )
                 )
 
@@ -467,22 +609,17 @@ class LegacyVideoGenerator:
                 )
             )
 
-        caminho_frame_pergunta = (
-            pasta_frames
-            / f"pergunta_{numero:03d}.png"
-        )
-
-        self._criar_frame_pergunta(
-            caminho=caminho_frame_pergunta,
-            numero=numero,
-            pergunta=pergunta
-        )
-
         clips_video.append(
-            ImageClip(
-                str(caminho_frame_pergunta)
-            ).with_duration(
-                duracao_pergunta
+            self.universal_scene_renderer
+            .create_knowledge_clip(
+                question=pergunta,
+                question_number=numero,
+                total_questions=(
+                    self.total_perguntas_contexto
+                ),
+                duration=duracao_pergunta,
+                scene_kind="question",
+                theme_pack=self._theme_pack(),
             )
         )
 
@@ -496,25 +633,20 @@ class LegacyVideoGenerator:
             0,
             -1
         ):
-            caminho_contagem = (
-                pasta_frames
-                / (
-                    f"pergunta_{numero:03d}"
-                    f"_contador_{contador}.png"
-                )
-            )
-
-            self._criar_frame_contagem(
-                caminho=caminho_contagem,
-                numero=numero,
-                pergunta=pergunta,
-                contador=contador
-            )
-
             clips_video.append(
-                ImageClip(
-                    str(caminho_contagem)
-                ).with_duration(1)
+                self.universal_scene_renderer
+                .create_knowledge_clip(
+                    question=pergunta,
+                    question_number=numero,
+                    total_questions=(
+                        self.total_perguntas_contexto
+                    ),
+                    duration=1.0,
+                    scene_kind="countdown",
+                    theme_pack=self._theme_pack(),
+                    countdown_value=contador,
+                    countdown_maximum=tempo_resposta,
+                )
             )
 
         tempo_inicio_resposta = (
@@ -565,10 +697,11 @@ class LegacyVideoGenerator:
             )
 
             clips_video.append(
-                ImageClip(
-                    str(caminho_frame_resposta)
-                ).with_duration(
-                    duracao_resposta
+                self._clip_frame_animado(
+                    caminho=caminho_frame_resposta,
+                    duracao=duracao_resposta,
+                    tipo_cena="reveal",
+                    numero=numero,
                 )
             )
 
@@ -597,25 +730,17 @@ class LegacyVideoGenerator:
                     )
                 )
 
-            caminho_frame_resposta = (
-                pasta_frames
-                / (
-                    f"pergunta_{numero:03d}"
-                    "_resposta.png"
-                )
-            )
-
-            self._criar_frame_resposta(
-                caminho=caminho_frame_resposta,
-                numero=numero,
-                pergunta=pergunta
-            )
-
             clips_video.append(
-                ImageClip(
-                    str(caminho_frame_resposta)
-                ).with_duration(
-                    duracao_resposta
+                self.universal_scene_renderer
+                .create_knowledge_clip(
+                    question=pergunta,
+                    question_number=numero,
+                    total_questions=(
+                        self.total_perguntas_contexto
+                    ),
+                    duration=duracao_resposta,
+                    scene_kind="reveal",
+                    theme_pack=self._theme_pack(),
                 )
             )
 
@@ -1117,18 +1242,64 @@ class LegacyVideoGenerator:
         imagem.save(caminho)
 
     def _criar_base(self):
+        pack = self._theme_pack()
+
+        background_top = tuple(
+            pack.get(
+                "background_top",
+                (90, 55, 180)
+            )
+        )
+
+        background_bottom = tuple(
+            pack.get(
+                "background_bottom",
+                (35, 28, 92)
+            )
+        )
+
+        panel_color = tuple(
+            pack.get(
+                "panel_color",
+                (245, 240, 255)
+            )
+        )
+
         imagem = Image.new(
             "RGB",
             (self.largura, self.altura),
-            (25, 45, 35)
+            background_bottom
         )
 
         desenho = ImageDraw.Draw(imagem)
 
+        for y in range(self.altura):
+            progress = y / max(
+                self.altura - 1,
+                1
+            )
+
+            color = tuple(
+                int(
+                    background_top[index]
+                    + (
+                        background_bottom[index]
+                        - background_top[index]
+                    )
+                    * progress
+                )
+                for index in range(3)
+            )
+
+            desenho.line(
+                (0, y, self.largura, y),
+                fill=color
+            )
+
         desenho.rounded_rectangle(
             (60, 45, 1220, 675),
             radius=35,
-            fill=(242, 244, 238)
+            fill=panel_color
         )
 
         return imagem, desenho
@@ -1145,7 +1316,12 @@ class LegacyVideoGenerator:
                 f"PERGUNTA {numero}"
             ),
             font=self._carregar_fonte(45),
-            fill=(35, 85, 55)
+            fill=tuple(
+                self._theme_pack().get(
+                    "primary_color",
+                    (35, 85, 55)
+                )
+            )
         )
 
     def _desenhar_pergunta_e_alternativas(

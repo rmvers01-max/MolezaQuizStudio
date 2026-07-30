@@ -6,10 +6,16 @@ from datetime import datetime
 from .legacy_generator import LegacyVideoGenerator
 from .templates.preference_renderer import ProfessionalPreferenceRenderer
 from .templates.registry import VideoTemplateRegistry
-from .universal import (
+from .universal.creative_director import (
     UniversalCreativeDirector,
+)
+from .universal.creative_plan_writer import (
     UniversalCreativePlanWriter,
+)
+from .universal.plan_writer import (
     UniversalPlanWriter,
+)
+from .universal.registry import (
     UniversalQuizAdapterRegistry,
 )
 
@@ -150,6 +156,11 @@ class VideoGenerator:
             if tipo_quiz == "preferencia"
             else self.renderer
         )
+
+        if tipo_quiz != "preferencia":
+            renderer.configurar_direcao_universal(
+                universal_creative_plan
+            )
 
         if tipo_quiz == "preferencia":
             renderer.total_perguntas_contexto = len(

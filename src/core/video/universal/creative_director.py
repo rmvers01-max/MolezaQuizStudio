@@ -4,9 +4,7 @@ from typing import Any
 
 from core.brand import BrandDirector
 from core.retention import RetentionDirector
-from core.video.templates.premium_themes import (
-    PremiumThemeRegistry,
-)
+from core.video.theme_packs import ThemePackDirector
 
 from .contracts import (
     FocusRole,
@@ -38,8 +36,8 @@ class UniversalCreativeDirector:
             RetentionDirector()
         )
 
-        self.theme_registry = (
-            PremiumThemeRegistry()
+        self.theme_pack_director = (
+            ThemePackDirector()
         )
 
     def direct(
@@ -69,10 +67,11 @@ class UniversalCreativeDirector:
             )
         )
 
-        theme = (
-            self.theme_registry
-            .selecionar(
-                plan.title
+        theme_pack = (
+            self.theme_pack_director
+            .direct(
+                title=plan.title,
+                quiz_type=plan.quiz_type,
             )
         )
 
@@ -82,7 +81,7 @@ class UniversalCreativeDirector:
                 retention_plan=(
                     retention_plan
                 ),
-                theme=theme,
+                theme_pack=theme_pack,
             )
             for scene in plan.scenes
         ]
@@ -102,10 +101,8 @@ class UniversalCreativeDirector:
             "retention_plan": (
                 retention_plan
             ),
-            "theme_pack": (
-                self._theme_to_dict(
-                    theme
-                )
+            "theme_pack": dict(
+                theme_pack
             ),
             "scenes": directed_scenes,
             "metadata": {
@@ -121,7 +118,7 @@ class UniversalCreativeDirector:
         self,
         scene: QuizScene,
         retention_plan: dict,
-        theme,
+        theme_pack,
     ) -> dict[str, Any]:
         question_decision = {}
 
@@ -173,8 +170,8 @@ class UniversalCreativeDirector:
                 "mascot_direction": (
                     mascot_direction
                 ),
-                "theme_code": theme.codigo,
-                "theme_name": theme.nome,
+                "theme_code": theme_pack["code"],
+                "theme_name": theme_pack["name"],
                 "retention_decision": (
                     question_decision
                 ),
@@ -376,48 +373,5 @@ class UniversalCreativeDirector:
             "never_cover_primary": True,
             "screen_position": (
                 "bottom_right"
-            ),
-        }
-
-    def _theme_to_dict(
-        self,
-        theme,
-    ) -> dict[str, Any]:
-        return {
-            "nome": theme.nome,
-            "codigo": theme.codigo,
-            "familia_fonte": (
-                theme.familia_fonte
-            ),
-            "titulo_tamanho": (
-                theme.titulo_tamanho
-            ),
-            "alternativa_tamanho": (
-                theme.alternativa_tamanho
-            ),
-            "arredondamento_cartao": (
-                theme
-                .arredondamento_cartao
-            ),
-            "particulas": (
-                theme.particulas
-            ),
-            "efeito_ambiente": (
-                theme.efeito_ambiente
-            ),
-            "estilo_camera": (
-                theme.estilo_camera
-            ),
-            "intensidade_fx": (
-                theme.intensidade_fx
-            ),
-            "intensidade_glow": (
-                theme.intensidade_glow
-            ),
-            "cor_texto": list(
-                theme.cor_texto
-            ),
-            "cor_secundaria": list(
-                theme.cor_secundaria
             ),
         }
