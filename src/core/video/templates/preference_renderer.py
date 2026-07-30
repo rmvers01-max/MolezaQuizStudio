@@ -25,6 +25,15 @@ from ..widgets import CardStyleFactory, MascotWidget
 from .visual_presets import VisualPresetRegistry
 from .layout_variations import LayoutVariationRegistry
 from .premium_themes import PremiumThemeRegistry
+from core.retention import RetentionDirector
+from ..opening import (
+    OpeningDirector,
+    OpeningStudio,
+)
+from ...brand import (
+    BrandConfigManager,
+    BrandDirector,
+)
 from ..timeline import (
     PreferenceTimelineFactory,
     TimelineCompositor,
@@ -124,7 +133,52 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
                 light_factory=self.light_sweep_factory
             )
         )
+        self.opening_director = (
+            OpeningDirector()
+        )
+
+        self.opening_studio = (
+            OpeningStudio(
+                largura=self.largura,
+                altura=self.altura,
+                fps=18
+            )
+        )
+
         self.preset_registry = VisualPresetRegistry()
+        self.brand_director = BrandDirector(
+            "moleza_quiz"
+        )
+
+        self.brand_config_manager = (
+            BrandConfigManager()
+        )
+
+        self.brand_config_manager.garantir_arquivo(
+            "moleza_quiz"
+        )
+
+        self.brand_direction = (
+            self.brand_director
+            .criar_direcao_video(
+                titulo_quiz="Moleza Quiz",
+                total_perguntas=1
+            )
+        )
+
+        self.retention_director = (
+            RetentionDirector()
+        )
+
+        self.retention_plan = (
+            self.retention_director
+            .criar_plano_video(
+                titulo="Moleza Quiz",
+                total_perguntas=1,
+                brand_direction=self.brand_direction
+            )
+        )
+
         self.premium_theme_registry = PremiumThemeRegistry()
         self.premium_theme = (
             self.premium_theme_registry
@@ -143,14 +197,57 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
 
         self.timeline_compositor = (
             TimelineCompositor(
-                fps=18
+                render_profile="balanced"
             )
+        )
+
+        self.perfil_renderizacao = (
+            "balanced"
         )
         self.preset_visual = (
             self.preset_registry
             .obter(
                 "vibrante"
             )
+        )
+
+    def definir_perfil_renderizacao(
+        self,
+        perfil="balanced"
+    ):
+        """
+        Define o perfil usado pelo compositor de timeline.
+
+        Perfis aceitos:
+        - preview
+        - balanced
+        - aaa
+        """
+        perfil = str(
+            perfil or "balanced"
+        ).strip().lower()
+
+        self.timeline_compositor = (
+            TimelineCompositor(
+                render_profile=perfil
+            )
+        )
+
+        self.perfil_renderizacao = perfil
+
+        return (
+            self.timeline_compositor
+            .render_profile
+        )
+
+    @property
+    def nome_perfil_renderizacao(
+        self
+    ):
+        return (
+            self.timeline_compositor
+            .render_profile
+            .nome
         )
 
     def _sincronizar_scene_factory(self):
@@ -184,6 +281,67 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         self.light_sweep_factory.largura = self.largura
         self.light_sweep_factory.altura = self.altura
 
+    def _criar_clip_abertura_profissional(
+        self,
+        titulo,
+        quantidade,
+        pasta_frames
+    ):
+        self.opening_studio.largura = (
+            self.largura
+        )
+
+        self.opening_studio.altura = (
+            self.altura
+        )
+
+        direcao = (
+            self.opening_director
+            .escolher(
+                titulo=titulo,
+                total_perguntas=quantidade,
+                retention_plan=getattr(
+                    self,
+                    "retention_plan",
+                    {}
+                )
+            )
+        )
+
+        clip = self.opening_studio.criar_clip(
+            titulo=titulo,
+            direcao=direcao,
+            brand_direction=self.brand_direction,
+            premium_theme=self.premium_theme
+        )
+
+        self.timeline_writer.salvar(
+            cena={
+                "tipo": "opening",
+                "titulo": titulo,
+                "direcao": direcao,
+                "brand_direction": (
+                    self.brand_direction
+                ),
+                "premium_theme": getattr(
+                    self.premium_theme,
+                    "codigo",
+                    "moleza_vibrante"
+                ),
+            },
+            caminho=(
+                Path(pasta_frames)
+                / "abertura_profissional.json"
+            )
+        )
+
+        return {
+            "clip": clip,
+            "duracao": float(
+                direcao["duracao"]
+            ),
+        }
+
     def _criar_clips_da_pergunta(
         self,
         pasta_frames,
@@ -206,11 +364,30 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         clips_video = []
         clips_audio = []
 
+        retention_scene = (
+            self.retention_director
+            .decisao_pergunta(
+                self.retention_plan,
+                numero
+            )
+        )
+
         pasta_projeto = (
             pasta_frames
             .parent
             .parent
         )
+
+        if numero == 1:
+            self.retention_director.salvar_relatorio(
+                self.retention_plan,
+                (
+                    pasta_projeto
+                    / "videos"
+                    / "relatorios"
+                    / "retention_plan.json"
+                )
+            )
 
         efeitos = (
             self.sound_factory
@@ -258,7 +435,12 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         )
 
         duracao_entrada = min(
-            1.1,
+            float(
+                retention_scene.get(
+                    "duracao_entrada",
+                    0.90
+                )
+            ),
             duracao_pergunta
         )
 
@@ -270,7 +452,9 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
                 layout=self.layout_atual,
                 preset=self.preset_visual,
                 duracao=duracao_entrada,
-                premium_theme=self.premium_theme
+                premium_theme=self.premium_theme,
+                brand_direction=self.brand_direction,
+                retention_scene=retention_scene
             )
         )
 
@@ -311,7 +495,11 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             ).with_volume_scaled(
                 0.38
             ).with_start(
-                tempo_inicio + 0.50
+                tempo_inicio
+                + min(
+                    duracao_entrada * 0.52,
+                    0.52
+                )
             ),
         ])
 
@@ -330,7 +518,8 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
                     layout=self.layout_atual,
                     preset=self.preset_visual,
                     caminho_frame=caminho_frame_pergunta,
-                    premium_theme=self.premium_theme
+                    premium_theme=self.premium_theme,
+                brand_direction=self.brand_direction
                 )
             )
 
@@ -370,7 +559,8 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
                     layout=self.layout_atual,
                     preset=self.preset_visual,
                     duracao=1.0,
-                    premium_theme=self.premium_theme
+                    premium_theme=self.premium_theme,
+                brand_direction=self.brand_direction
                 )
             )
 
@@ -411,7 +601,12 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             + tempo_resposta
         )
 
-        duracao_escolha = 2.2
+        duracao_escolha = float(
+            retention_scene.get(
+                "duracao_resultado",
+                1.95
+            )
+        )
 
         clips_audio.append(
             AudioFileClip(
@@ -456,7 +651,9 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
                 layout=self.layout_atual,
                 preset=self.preset_visual,
                 duracao=duracao_escolha,
-                premium_theme=self.premium_theme
+                premium_theme=self.premium_theme,
+                brand_direction=self.brand_direction,
+                retention_scene=retention_scene
             )
         )
 
@@ -894,6 +1091,27 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             self.premium_theme_registry
             .selecionar(
                 tema
+            )
+        )
+
+        self.brand_direction = (
+            self.brand_director
+            .criar_direcao_video(
+                titulo_quiz=tema,
+                total_perguntas=(
+                    self.total_perguntas_contexto
+                )
+            )
+        )
+
+        self.retention_plan = (
+            self.retention_director
+            .criar_plano_video(
+                titulo=tema,
+                total_perguntas=(
+                    self.total_perguntas_contexto
+                ),
+                brand_direction=self.brand_direction
             )
         )
 

@@ -30,6 +30,8 @@ class PreferenceTimelineFactory:
         preset,
         caminho_frame=None,
         premium_theme=None,
+        brand_direction=None,
+        retention_scene=None,
     ):
         builder = TimelineSceneBuilder(
             nome=f"pergunta_{numero:03d}",
@@ -81,6 +83,7 @@ class PreferenceTimelineFactory:
             propriedades={
                 "caixa": layout.caixa_a,
                 "cor": preset.paletas_perguntas[0]["a"],
+                "reflexo_animado": False,
             },
             animacoes=[
                 animacao(
@@ -140,14 +143,12 @@ class PreferenceTimelineFactory:
             nome="cartao_b",
             tipo=LayerType.CARD,
             z_index=20,
-            inicio=0.12,
-            duracao=max(
-                duracao - 0.12,
-                0.1
-            ),
+            inicio=0,
+            duracao=duracao,
             propriedades={
                 "caixa": layout.caixa_b,
                 "cor": preset.paletas_perguntas[0]["b"],
+                "reflexo_animado": False,
             },
             animacoes=[
                 animacao(
@@ -170,11 +171,8 @@ class PreferenceTimelineFactory:
             nome="imagem_b",
             tipo=LayerType.IMAGE,
             z_index=30,
-            inicio=0.2,
-            duracao=max(
-                duracao - 0.2,
-                0.1
-            ),
+            inicio=0,
+            duracao=duracao,
             origem=pergunta.get(
                 "imagem_b"
             ),
@@ -208,21 +206,13 @@ class PreferenceTimelineFactory:
             nome="ou",
             tipo=LayerType.BADGE,
             z_index=40,
-            inicio=0.42,
-            duracao=max(
-                duracao - 0.42,
-                0.1
-            ),
+            inicio=0,
+            duracao=duracao,
             origem="assets/ui/ou.png",
             propriedades={
                 "caixa": layout.caixa_ou,
+                "estado": "estavel",
             },
-            animacoes=[
-                animacao(
-                    "pop",
-                    duracao=0.5,
-                )
-            ],
         )
 
         builder.adicionar(
@@ -263,6 +253,7 @@ class PreferenceTimelineFactory:
         builder.scene.metadados.update({
             "numero": numero,
             "tipo_quiz": "preferencia",
+            "densidade_conteudo": 0.72,
             "layout": layout.nome,
             "preset": preset.nome,
             "intensidade_fx": (
@@ -346,6 +337,18 @@ class PreferenceTimelineFactory:
             },
         })
 
+        builder.scene.metadados[
+            "brand_direction"
+        ] = dict(
+            brand_direction or {}
+        )
+
+        builder.scene.metadados[
+            "retention_scene"
+        ] = dict(
+            retention_scene or {}
+        )
+
         return builder.construir()
 
 
@@ -358,6 +361,8 @@ class PreferenceTimelineFactory:
         preset,
         duracao=1.0,
         premium_theme=None,
+        brand_direction=None,
+        retention_scene=None,
     ):
         builder = TimelineSceneBuilder(
             nome=f"pergunta_{numero:03d}_contador_{contador}",
@@ -393,6 +398,8 @@ class PreferenceTimelineFactory:
                 propriedades={
                     "caixa": caixa,
                     "cor": cor,
+                    "reflexo_animado": False,
+                    "idle_amplitude": 0.0,
                 },
             )
 
@@ -475,6 +482,7 @@ class PreferenceTimelineFactory:
         builder.scene.metadados.update({
             "numero": numero,
             "contador": contador,
+            "densidade_conteudo": 0.82,
             "etapa": "contagem",
             "tipo_quiz": "preferencia",
             "layout": layout.nome,
@@ -560,6 +568,18 @@ class PreferenceTimelineFactory:
             },
         })
 
+        builder.scene.metadados[
+            "brand_direction"
+        ] = dict(
+            brand_direction or {}
+        )
+
+        builder.scene.metadados[
+            "retention_scene"
+        ] = dict(
+            retention_scene or {}
+        )
+
         return builder.construir()
 
 
@@ -571,6 +591,8 @@ class PreferenceTimelineFactory:
         preset,
         duracao=2.2,
         premium_theme=None,
+        brand_direction=None,
+        retention_scene=None,
     ):
         builder = TimelineSceneBuilder(
             nome=f"pergunta_{numero:03d}_resultado",
@@ -696,6 +718,7 @@ class PreferenceTimelineFactory:
         builder.scene.metadados.update({
             "numero": numero,
             "etapa": "resultado",
+            "densidade_conteudo": 0.48,
             "tipo_quiz": "preferencia",
             "layout": layout.nome,
             "preset": preset.nome,
@@ -780,6 +803,18 @@ class PreferenceTimelineFactory:
             },
         })
 
+        builder.scene.metadados[
+            "brand_direction"
+        ] = dict(
+            brand_direction or {}
+        )
+
+        builder.scene.metadados[
+            "retention_scene"
+        ] = dict(
+            retention_scene or {}
+        )
+
         return builder.construir()
 
 
@@ -791,6 +826,8 @@ class PreferenceTimelineFactory:
         preset,
         duracao=1.1,
         premium_theme=None,
+        brand_direction=None,
+        retention_scene=None,
     ):
         builder = TimelineSceneBuilder(
             nome=f"pergunta_{numero:03d}_entrada",
@@ -830,6 +867,7 @@ class PreferenceTimelineFactory:
                 "duracao_entrada": 0.72,
                 "easing_entrada": "ease_out_back",
                 "overshoot": 1.45,
+                "reflexo_animado": True,
             },
         )
 
@@ -880,7 +918,8 @@ class PreferenceTimelineFactory:
                 "cor": preset.paletas_perguntas[0]["b"],
                 "entrada": "direita",
                 "duracao_entrada": 0.72,
-                "easing_entrada": "ease_out_elastic",
+                "easing_entrada": "ease_out_cubic",
+                "reflexo_animado": True,
             },
         )
 
@@ -894,7 +933,7 @@ class PreferenceTimelineFactory:
             propriedades={
                 "entrada": "direita",
                 "duracao_entrada": 0.72,
-                "easing_entrada": "ease_out_elastic",
+                "easing_entrada": "ease_out_cubic",
             },
         )
 
@@ -913,7 +952,7 @@ class PreferenceTimelineFactory:
                 "caixa": layout.caixa_b,
                 "entrada": "direita",
                 "duracao_entrada": 0.72,
-                "easing_entrada": "ease_out_elastic",
+                "easing_entrada": "ease_out_cubic",
             },
         )
 
@@ -954,14 +993,30 @@ class PreferenceTimelineFactory:
             duracao,
             propriedades={
                 "pose": (
-                    "point_left"
-                    if numero % 2 == 1
-                    else "point_right"
+                    (
+                        retention_scene
+                        or {}
+                    ).get(
+                        "mascote_pose_entrada",
+                        (
+                            "point_left"
+                            if numero % 2 == 1
+                            else "point_right"
+                        )
+                    )
                 ),
                 "comportamento": (
-                    "point_left"
-                    if numero % 2 == 1
-                    else "point_right"
+                    (
+                        retention_scene
+                        or {}
+                    ).get(
+                        "mascote_pose_entrada",
+                        (
+                            "point_left"
+                            if numero % 2 == 1
+                            else "point_right"
+                        )
+                    )
                 ),
                 "intensidade": 1.0,
                 "posicao": "inferior_direita",
@@ -971,9 +1026,22 @@ class PreferenceTimelineFactory:
         builder.scene.metadados.update({
             "numero": numero,
             "etapa": "entrada",
+            "densidade_conteudo": 0.58,
             "tipo_quiz": "preferencia",
             "layout": layout.nome,
             "preset": preset.nome,
         })
+
+        builder.scene.metadados[
+            "brand_direction"
+        ] = dict(
+            brand_direction or {}
+        )
+
+        builder.scene.metadados[
+            "retention_scene"
+        ] = dict(
+            retention_scene or {}
+        )
 
         return builder.construir()

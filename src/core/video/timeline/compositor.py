@@ -8,6 +8,11 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageEnhance
 from moviepy import ImageSequenceClip
 
 from .models import LayerType
+from ..render import (
+    AAARenderPipeline,
+    RenderDiagnostics,
+    RenderProfileRegistry,
+)
 from ..animations import (
     CharacterAnimationEngine,
     SmartEasing,
@@ -16,26 +21,67 @@ from ..effects import (
     CardMaterialEngine,
     CinematicFXEngine,
     ImageDepthFactory,
+    LivingBackgroundEngine,
     MotionBlurEngine,
     VisualFXEngine,
 )
 
 
 class TimelineCompositor:
-    def __init__(self, fps=18):
-        self.fps = max(int(fps), 10)
+    def __init__(
+        self,
+        fps=18,
+        render_profile="balanced"
+    ):
+        self.profile_registry = (
+            RenderProfileRegistry()
+        )
+
+        self.render_profile = (
+            self.profile_registry
+            .obter(
+                render_profile
+            )
+        )
+
+        self.fps = max(
+            int(
+                self.render_profile
+                .fps_timeline
+            ),
+            10
+        )
         self.visual_fx = VisualFXEngine()
+        self.living_background = (
+            LivingBackgroundEngine()
+        )
         self.motion_blur = MotionBlurEngine()
         self.image_depth = ImageDepthFactory()
         self.character_engine = CharacterAnimationEngine()
         self.cinematic_fx = CinematicFXEngine()
         self.card_material = CardMaterialEngine()
+        self._asset_cache = {}
+
+        self.aaa_pipeline = AAARenderPipeline(
+            self.render_profile
+        )
+
+        self.render_diagnostics = (
+            RenderDiagnostics()
+        )
 
     def renderizar(self, cena):
         cena.validar()
 
         self.visual_fx.largura = cena.largura
         self.visual_fx.altura = cena.altura
+
+        self.living_background.largura = (
+            cena.largura
+        )
+        self.living_background.altura = (
+            cena.altura
+        )
 
         self.cinematic_fx.largura = cena.largura
         self.cinematic_fx.altura = cena.altura
@@ -56,6 +102,46 @@ class TimelineCompositor:
             )
             imagem = self._fundo(cena, t)
 
+            retention_scene = dict(
+                cena.metadados.get(
+                    "retention_scene",
+                    {}
+                )
+            )
+
+            tema_codigo = str(
+                self._tema_atual.get(
+                    "codigo",
+                    "moleza_vibrante"
+                )
+            )
+
+            densidade_conteudo = float(
+                cena.metadados.get(
+                    "densidade_conteudo",
+                    0.62
+                )
+            )
+
+            self.living_background.aplicar(
+                imagem=imagem,
+                tempo=t,
+                tema=tema_codigo,
+                intensidade=float(
+                    retention_scene.get(
+                        "intensidade_fx",
+                        0.55
+                    )
+                ),
+                densidade_conteudo=densidade_conteudo,
+                pattern_break=bool(
+                    retention_scene.get(
+                        "pattern_break",
+                        False
+                    )
+                )
+            )
+
             intensidade_fx = float(
                 self._tema_atual.get(
                     "intensidade_fx",
@@ -66,18 +152,19 @@ class TimelineCompositor:
                 )
             )
 
-            self.visual_fx.aplicar_ambiente(
-                imagem,
-                tempo=t,
-                intensidade=intensidade_fx
-            )
+            if self.render_profile.visual_fx:
+                self.visual_fx.aplicar_ambiente(
+                    imagem,
+                    tempo=t,
+                    intensidade=intensidade_fx
+                )
 
-            self.visual_fx.aplicar_particulas(
-                imagem,
-                tempo=t,
-                quantidade=30,
-                intensidade=intensidade_fx
-            )
+                self.visual_fx.aplicar_particulas(
+                    imagem,
+                    tempo=t,
+                    quantidade=30,
+                    intensidade=intensidade_fx
+                )
 
             for camada in sorted(cena.camadas, key=lambda c: c.z_index):
                 if not (camada.inicio <= t <= camada.fim):
@@ -118,11 +205,12 @@ class TimelineCompositor:
                 intensidade=0.12
             )
 
-            imagem = self._aplicar_camera(
-                imagem,
-                cena,
-                t
-            )
+            if self.render_profile.camera_engine:
+                imagem = self._aplicar_camera(
+                    imagem,
+                    cena,
+                    t
+                )
 
             intensidade_cinematica = float(
                 self._tema_atual.get(
@@ -131,26 +219,36 @@ class TimelineCompositor:
                 )
             )
 
-            imagem = self.cinematic_fx.aplicar(
-                imagem,
-                tempo=t,
-                intensidade=intensidade_cinematica,
-                estilo=self._tema_atual.get(
-                    "efeito_ambiente",
-                    "mixed_glow"
+            if self.render_profile.cinematic_fx:
+                imagem = self.cinematic_fx.aplicar(
+                    imagem,
+                    tempo=t,
+                    intensidade=intensidade_cinematica,
+                    estilo=self._tema_atual.get(
+                        "efeito_ambiente",
+                        "mixed_glow"
+                    )
+                )
+
+            imagem = (
+                self.aaa_pipeline
+                .finalizar_frame(
+                    imagem
                 )
             )
 
             quadros.append(
-                np.asarray(
-                    imagem.convert("RGB")
-                )
+                imagem
             )
 
-        return ImageSequenceClip(
-            quadros,
-            fps=self.fps,
-        ).with_duration(cena.duracao)
+        self.render_diagnostics.registrar_cena(
+            len(quadros)
+        )
+
+        return self.aaa_pipeline.criar_clip(
+            quadros=quadros,
+            duracao=cena.duracao
+        )
 
     def _aplicar_camera(
         self,
@@ -635,9 +733,17 @@ class TimelineCompositor:
                 0.65
             ),
             intensidade_reflexo=(
-                0.0
-                if resultado
-                else 0.22
+                0.22
+                if (
+                    not resultado
+                    and bool(
+                        camada.propriedades.get(
+                            "reflexo_animado",
+                            False
+                        )
+                    )
+                )
+                else 0.0
             ),
             resultado=resultado
         )
@@ -1019,39 +1125,88 @@ class TimelineCompositor:
     def _badge(self, imagem, camada, progresso):
         if not camada.origem:
             return
+
         caminho = Path(camada.origem)
+
         if not caminho.exists():
             return
+
         caixa = camada.propriedades.get("caixa")
+
         if not caixa:
             return
 
-        try:
-            badge = Image.open(caminho).convert("RGBA")
-        except OSError:
-            return
+        chave_cache = str(
+            caminho.resolve()
+        )
+
+        badge_original = self._asset_cache.get(
+            chave_cache
+        )
+
+        if badge_original is None:
+            try:
+                badge_original = Image.open(
+                    caminho
+                ).convert("RGBA")
+
+            except OSError:
+                return
+
+            self._asset_cache[
+                chave_cache
+            ] = badge_original
+
+        badge = badge_original.copy()
 
         x1, y1, x2, y2 = map(int, caixa)
-        easing_nome = str(
+        tipo_entrada = str(
             camada.propriedades.get(
-                "easing_entrada",
-                "ease_out_bounce"
+                "entrada",
+                ""
             )
-        )
+        ).strip().lower()
 
-        escala = max(
-            SmartEasing.aplicar(
-                easing_nome,
-                min(
-                    max(
-                        progresso / 0.35,
-                        0.0
-                    ),
-                    1.0
+        # O efeito pop deve ocorrer somente na cena de entrada.
+        # Nas cenas principal e de contagem, o OU permanece estável
+        # em escala completa, evitando uma segunda entrada.
+        if tipo_entrada == "pop":
+            easing_nome = str(
+                camada.propriedades.get(
+                    "easing_entrada",
+                    "ease_out_bounce"
                 )
-            ),
-            0.15
-        )
+            )
+
+            progresso_pop = min(
+                max(
+                    progresso / 0.35,
+                    0.0
+                ),
+                1.0
+            )
+
+            escala = max(
+                SmartEasing.aplicar(
+                    easing_nome,
+                    progresso_pop
+                ),
+                0.0
+            )
+
+            opacidade = min(
+                max(
+                    progresso_pop / 0.30,
+                    0.0
+                ),
+                1.0
+            )
+        else:
+            escala = 1.0
+            opacidade = 1.0
+
+        if escala <= 0.001 or opacidade <= 0.001:
+            return
         badge.thumbnail(
             (
                 max(int((x2 - x1) * escala), 1),
@@ -1059,6 +1214,20 @@ class TimelineCompositor:
             ),
             Image.Resampling.LANCZOS,
         )
+
+        if opacidade < 0.999:
+            alpha = badge.getchannel(
+                "A"
+            ).point(
+                lambda valor: int(
+                    valor * opacidade
+                )
+            )
+
+            badge.putalpha(
+                alpha
+            )
+
         x = (x1 + x2) // 2 - badge.width // 2
         y = (y1 + y2) // 2 - badge.height // 2
         imagem.alpha_composite(badge, (x, y))

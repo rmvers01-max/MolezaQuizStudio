@@ -10,6 +10,27 @@ from core.video_generator import VideoGenerator
 
 class VideoPage(ctk.CTkFrame):
 
+    PERFIS_RENDERIZACAO = {
+        "Prévia rápida": "preview",
+        "Qualidade equilibrada": "balanced",
+        "AAA final": "aaa",
+    }
+
+    DESCRICOES_PERFIL = {
+        "Prévia rápida": (
+            "Renderização mais rápida para conferir roteiro, "
+            "imagens, narração e sincronização."
+        ),
+        "Qualidade equilibrada": (
+            "Boa qualidade com tempo de renderização moderado. "
+            "Recomendado para a produção diária."
+        ),
+        "AAA final": (
+            "Qualidade máxima, 24 FPS na timeline, anti-aliasing "
+            "e todos os efeitos ativados. O render será mais demorado."
+        ),
+    }
+
     def __init__(self, master):
         super().__init__(master)
 
@@ -55,8 +76,8 @@ class VideoPage(ctk.CTkFrame):
         ctk.CTkLabel(
             cabecalho,
             text=(
-                "Crie vídeos com narração, música e contagem. "
-                "Quizzes de preferência não exibem resposta correta."
+                "Crie vídeos com narração, música, "
+                "contagem regressiva e respostas."
             ),
             text_color="gray70"
         ).pack(
@@ -367,6 +388,68 @@ class VideoPage(ctk.CTkFrame):
         )
 
         # ==================================
+        # QUALIDADE DE RENDERIZAÇÃO
+        # ==================================
+
+        ctk.CTkLabel(
+            painel,
+            text="Qualidade de renderização",
+            font=("Arial", 18, "bold")
+        ).pack(
+            pady=(15, 8)
+        )
+
+        self.perfil_renderizacao = ctk.CTkOptionMenu(
+            painel,
+            values=list(
+                self.PERFIS_RENDERIZACAO.keys()
+            ),
+            width=300,
+            command=self.atualizar_descricao_perfil
+        )
+
+        self.perfil_renderizacao.set(
+            "Qualidade equilibrada"
+        )
+
+        self.perfil_renderizacao.pack(
+            pady=(0, 8)
+        )
+
+        self.descricao_perfil = ctk.CTkLabel(
+            painel,
+            text=(
+                self.DESCRICOES_PERFIL[
+                    "Qualidade equilibrada"
+                ]
+            ),
+            wraplength=620,
+            justify="center",
+            text_color="gray70"
+        )
+
+        self.descricao_perfil.pack(
+            padx=20,
+            pady=(0, 8)
+        )
+
+        self.aviso_perfil_aaa = ctk.CTkLabel(
+            painel,
+            text=(
+                "Dica: use Prévia rápida durante os testes "
+                "e AAA final somente na exportação definitiva."
+            ),
+            wraplength=620,
+            justify="center",
+            text_color="#BFA7FF"
+        )
+
+        self.aviso_perfil_aaa.pack(
+            padx=20,
+            pady=(0, 20)
+        )
+
+        # ==================================
         # GERAR
         # ==================================
 
@@ -404,6 +487,40 @@ class VideoPage(ctk.CTkFrame):
             padx=20,
             pady=(10, 30)
         )
+
+    def atualizar_descricao_perfil(
+        self,
+        nome_perfil
+    ):
+        descricao = (
+            self.DESCRICOES_PERFIL.get(
+                nome_perfil,
+                self.DESCRICOES_PERFIL[
+                    "Qualidade equilibrada"
+                ]
+            )
+        )
+
+        self.descricao_perfil.configure(
+            text=descricao
+        )
+
+        if nome_perfil == "AAA final":
+            self.aviso_perfil_aaa.configure(
+                text=(
+                    "AAA final exige mais memória e processamento. "
+                    "Recomendado somente para o vídeo definitivo."
+                ),
+                text_color="#FBBF24"
+            )
+        else:
+            self.aviso_perfil_aaa.configure(
+                text=(
+                    "Dica: use Prévia rápida durante os testes "
+                    "e AAA final somente na exportação definitiva."
+                ),
+                text_color="#BFA7FF"
+            )
 
     def selecionar_musica(self):
         caminho = filedialog.askopenfilename(
@@ -564,59 +681,6 @@ class VideoPage(ctk.CTkFrame):
             )
             return
 
-        configuracao = (
-            self.project_manager
-            .carregar_configuracao_projeto(
-                pasta_projeto
-            )
-        )
-
-        tipo_quiz = str(
-            configuracao.get(
-                "tipo_quiz",
-                ""
-            )
-        ).strip().lower()
-
-        if not tipo_quiz:
-            tipo_quiz = (
-                "preferencia"
-                if all(
-                    not str(
-                        pergunta.get(
-                            "resposta",
-                            ""
-                        )
-                    ).strip()
-                    for pergunta in perguntas
-                )
-                else "conhecimento"
-            )
-
-        if tipo_quiz == "preferencia":
-            texto_atual = (
-                self.texto_encerramento
-                .get()
-                .strip()
-            )
-
-            if (
-                not texto_atual
-                or texto_atual
-                == "Comente quantos pontos você fez!"
-            ):
-                self.texto_encerramento.delete(
-                    0,
-                    "end"
-                )
-                self.texto_encerramento.insert(
-                    0,
-                    (
-                        "Qual foi a sua escolha favorita? "
-                        "Conte nos comentários!"
-                    )
-                )
-
         usar_narracao = bool(
             self.usar_narracao.get()
         )
@@ -683,6 +747,17 @@ class VideoPage(ctk.CTkFrame):
             self.usar_encerramento.get()
         )
 
+        nome_perfil = (
+            self.perfil_renderizacao.get()
+        )
+
+        perfil_renderizacao = (
+            self.PERFIS_RENDERIZACAO.get(
+                nome_perfil,
+                "balanced"
+            )
+        )
+
         self.botao_gerar.configure(
             state="disabled",
             text="GERANDO..."
@@ -691,7 +766,10 @@ class VideoPage(ctk.CTkFrame):
         self.progresso.set(0)
 
         self.status.configure(
-            text="Preparando a geração do vídeo..."
+            text=(
+                "Preparando a geração do vídeo...\n"
+                f"Perfil: {nome_perfil}"
+            )
         )
 
         thread = threading.Thread(
@@ -708,7 +786,8 @@ class VideoPage(ctk.CTkFrame):
                 titulo_quiz,
                 texto_encerramento,
                 incluir_abertura,
-                incluir_encerramento
+                incluir_encerramento,
+                perfil_renderizacao
             ),
             daemon=True
         )
@@ -728,7 +807,8 @@ class VideoPage(ctk.CTkFrame):
         titulo_quiz,
         texto_encerramento,
         incluir_abertura,
-        incluir_encerramento
+        incluir_encerramento,
+        perfil_renderizacao
     ):
         try:
             caminho_video = (
@@ -753,6 +833,9 @@ class VideoPage(ctk.CTkFrame):
                     ),
                     callback_progresso=(
                         self.receber_progresso
+                    ),
+                    perfil_renderizacao=(
+                        perfil_renderizacao
                     )
                 )
             )
