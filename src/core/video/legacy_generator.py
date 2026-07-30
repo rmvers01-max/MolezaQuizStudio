@@ -6,6 +6,7 @@ import textwrap
 from PIL import Image, ImageDraw, ImageFont
 
 from .opening import OpeningDirector, OpeningStudio
+from .outro import OutroStudio
 from .universal.legacy_motion import (
     UniversalLegacyMotionRenderer,
 )
@@ -68,6 +69,12 @@ class LegacyVideoGenerator:
         self.opening_studio = OpeningStudio(
             largura=self.largura,
             altura=self.altura,
+            fps=18,
+        )
+
+        self.outro_studio = OutroStudio(
+            width=self.largura,
+            height=self.altura,
             fps=18,
         )
 
@@ -357,23 +364,13 @@ class LegacyVideoGenerator:
                     "Criando tela de encerramento..."
                 )
 
-                caminho_encerramento = (
-                    pasta_frames
-                    / "encerramento.png"
-                )
-
-                self._criar_frame_encerramento(
-                    caminho=caminho_encerramento,
-                    texto=texto_encerramento
-                )
-
-                duracao_encerramento = 4
+                duracao_encerramento = 5.0
 
                 clips_video.append(
-                    self._clip_frame_animado(
-                        caminho=caminho_encerramento,
-                        duracao=duracao_encerramento,
-                        tipo_cena="outro",
+                    self.outro_studio.create_clip(
+                        text=texto_encerramento,
+                        duration=duracao_encerramento,
+                        theme_pack=self._theme_pack(),
                     )
                 )
 

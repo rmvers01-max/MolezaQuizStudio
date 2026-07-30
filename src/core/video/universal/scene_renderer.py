@@ -12,6 +12,12 @@ from PIL import (
 )
 from moviepy import ImageSequenceClip
 
+from ..attention import (
+    CinematicSceneDirector,
+    EyeFocusDirector,
+    MascotLifeEngine,
+)
+
 from .components import (
     AnswerComponent,
     ChoiceComponent,
@@ -50,6 +56,14 @@ class UniversalSceneRenderer:
                 width=self.width,
                 height=self.height,
             )
+        )
+
+        self.eye_focus = EyeFocusDirector()
+        self.cinematic_scene = (
+            CinematicSceneDirector()
+        )
+        self.mascot_life = (
+            MascotLifeEngine()
         )
 
     def create_knowledge_clip(
@@ -269,6 +283,56 @@ class UniversalSceneRenderer:
                 progress=progress,
                 theme_pack=theme_pack,
             )
+
+        focus_target = (
+            self.eye_focus
+            .resolve_knowledge_target(
+                scene_kind=scene_kind,
+                has_image=has_image,
+                width=self.width,
+                height=self.height,
+            )
+        )
+
+        image = self.eye_focus.apply(
+            image,
+            focus_target,
+            accent_color=tuple(
+                theme_pack.get(
+                    "accent_color",
+                    (255, 215, 65),
+                )
+            ),
+        )
+
+        image = self.mascot_life.render(
+            image,
+            scene_kind=scene_kind,
+            progress=progress,
+            focus=focus_target,
+            intensity=(
+                0.72
+                if scene_kind == "countdown"
+                else 1.0
+            ),
+        )
+
+        image = (
+            self.cinematic_scene
+            .apply_camera(
+                image,
+                target=focus_target,
+                time=time,
+                progress=progress,
+                scene_kind=scene_kind,
+                motion_intensity=float(
+                    theme_pack.get(
+                        "motion_intensity",
+                        0.50,
+                    )
+                ),
+            )
+        )
 
         return image
 
