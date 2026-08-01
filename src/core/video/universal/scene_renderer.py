@@ -16,6 +16,7 @@ from ..attention import (
     CinematicSceneDirector,
     EyeFocusDirector,
     MascotLifeEngine,
+    PatternBreakDirector,
 )
 
 from .components import (
@@ -64,6 +65,10 @@ class UniversalSceneRenderer:
         )
         self.mascot_life = (
             MascotLifeEngine()
+        )
+
+        self.pattern_break = (
+            PatternBreakDirector()
         )
 
     def create_knowledge_clip(
@@ -160,6 +165,15 @@ class UniversalSceneRenderer:
                 alternatives
             ),
             has_image=has_image,
+        )
+
+        pattern_decision = (
+            self.pattern_break
+            .decide(
+                question_number=question_number,
+                total_questions=total_questions,
+                scene_kind=scene_kind,
+            )
         )
 
         image = self._background(
@@ -284,6 +298,21 @@ class UniversalSceneRenderer:
                 theme_pack=theme_pack,
             )
 
+        image = (
+            self.pattern_break
+            .apply_accent(
+                image=image,
+                decision=pattern_decision,
+                accent_color=tuple(
+                    theme_pack.get(
+                        "accent_color",
+                        (255, 215, 65),
+                    )
+                ),
+                progress=progress,
+            )
+        )
+
         focus_target = (
             self.eye_focus
             .resolve_knowledge_target(
@@ -311,9 +340,12 @@ class UniversalSceneRenderer:
             progress=progress,
             focus=focus_target,
             intensity=(
-                0.72
-                if scene_kind == "countdown"
-                else 1.0
+                (
+                    0.72
+                    if scene_kind == "countdown"
+                    else 1.0
+                )
+                + pattern_decision.mascot_boost
             ),
         )
 
@@ -325,11 +357,15 @@ class UniversalSceneRenderer:
                 time=time,
                 progress=progress,
                 scene_kind=scene_kind,
-                motion_intensity=float(
-                    theme_pack.get(
-                        "motion_intensity",
-                        0.50,
+                motion_intensity=min(
+                    float(
+                        theme_pack.get(
+                            "motion_intensity",
+                            0.50,
+                        )
                     )
+                    + pattern_decision.camera_boost,
+                    1.0,
                 ),
             )
         )

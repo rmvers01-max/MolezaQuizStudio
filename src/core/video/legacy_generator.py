@@ -5,6 +5,11 @@ import textwrap
 
 from PIL import Image, ImageDraw, ImageFont
 
+from .audio_sync import AudioSyncDirector
+from .attention import (
+    PatternBreakDirector,
+    ViewerAttentionAnalyzer,
+)
 from .opening import OpeningDirector, OpeningStudio
 from .outro import OutroStudio
 from .universal.legacy_motion import (
@@ -76,6 +81,14 @@ class LegacyVideoGenerator:
             width=self.largura,
             height=self.altura,
             fps=18,
+        )
+
+        self.audio_sync = AudioSyncDirector()
+        self.pattern_break_director = (
+            PatternBreakDirector()
+        )
+        self.viewer_attention = (
+            ViewerAttentionAnalyzer()
         )
 
     def configurar_direcao_universal(
@@ -232,6 +245,48 @@ class LegacyVideoGenerator:
             1
         )
 
+        pattern_break_questions = [
+            number
+            for number in range(
+                1,
+                self.total_perguntas_contexto + 1
+            )
+            if (
+                self.pattern_break_director
+                .decide(
+                    question_number=number,
+                    total_questions=(
+                        self.total_perguntas_contexto
+                    ),
+                    scene_kind="question",
+                )
+                .active
+            )
+        ]
+
+        attention_report = (
+            self.viewer_attention
+            .analyze(
+                total_questions=(
+                    self.total_perguntas_contexto
+                ),
+                pattern_break_questions=(
+                    pattern_break_questions
+                ),
+                theme_pack=self._theme_pack(),
+            )
+        )
+
+        self.viewer_attention.save(
+            attention_report,
+            (
+                pasta_projeto
+                / "videos"
+                / "relatorios"
+                / "viewer_attention_report.json"
+            ),
+        )
+
         clips_video = []
         clips_narracao = []
 
@@ -336,7 +391,8 @@ class LegacyVideoGenerator:
                         tempo_resposta=tempo_resposta,
                         tempo_inicio=tempo_atual,
                         usar_narracao=usar_narracao,
-                        volume_narracao=volume_narracao
+                        volume_narracao=volume_narracao,
+                        pasta_projeto=pasta_projeto
                     )
                 )
 
@@ -558,7 +614,8 @@ class LegacyVideoGenerator:
         tempo_resposta,
         tempo_inicio,
         usar_narracao,
-        volume_narracao
+        volume_narracao,
+        pasta_projeto
     ):
         clips_video = []
         clips_audio = []
@@ -740,6 +797,27 @@ class LegacyVideoGenerator:
                     theme_pack=self._theme_pack(),
                 )
             )
+
+        audio_cues = (
+            self.audio_sync
+            .build_question_cues(
+                project_root=pasta_projeto,
+                question_number=numero,
+                total_questions=(
+                    self.total_perguntas_contexto
+                ),
+                question_start=tempo_inicio,
+                question_duration=duracao_pergunta,
+                response_time=tempo_resposta,
+                reveal_duration=duracao_resposta,
+            )
+        )
+
+        clips_audio.extend(
+            self.audio_sync.create_clips(
+                audio_cues
+            )
+        )
 
         duracao_total = (
             duracao_pergunta
