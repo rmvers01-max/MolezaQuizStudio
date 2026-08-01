@@ -71,6 +71,8 @@ class UniversalSceneRenderer:
             PatternBreakDirector()
         )
 
+        self.question_direction_plan = None
+
         self.execution_settings = {
             "pattern_breaks_enabled": True,
             "pattern_break_interval": 4,
@@ -78,6 +80,29 @@ class UniversalSceneRenderer:
             "mascot_enabled": True,
             "mascot_intensity": 0.80,
         }
+
+    def configure_question_direction(
+        self,
+        plan,
+    ):
+        self.question_direction_plan = plan
+
+    def _question_direction(
+        self,
+        question_number,
+    ):
+        if self.question_direction_plan is None:
+            return None
+
+        if hasattr(
+            self.question_direction_plan,
+            "question"
+        ):
+            return self.question_direction_plan.question(
+                question_number
+            )
+
+        return None
 
     def configure_execution(
         self,
@@ -170,6 +195,12 @@ class UniversalSceneRenderer:
         countdown_value: int | None = None,
         countdown_maximum: int | None = None,
     ) -> Image.Image:
+        question_direction = (
+            self._question_direction(
+                question_number
+            )
+        )
+
         alternatives = list(
             question.get(
                 "alternativas",
@@ -383,9 +414,15 @@ class UniversalSceneRenderer:
             )
         ):
             base_mascot_intensity = float(
-                self.execution_settings.get(
-                    "mascot_intensity",
-                    0.80
+                (
+                    question_direction
+                    .mascot_intensity
+                    if question_direction
+                    is not None
+                    else self.execution_settings.get(
+                        "mascot_intensity",
+                        0.80
+                    )
                 )
             )
 
@@ -414,10 +451,18 @@ class UniversalSceneRenderer:
                 progress=progress,
                 scene_kind=scene_kind,
                 motion_intensity=min(
-                    float(
-                        theme_pack.get(
-                            "motion_intensity",
-                            0.50,
+                    (
+                        float(
+                            question_direction
+                            .camera_intensity
+                        )
+                        if question_direction
+                        is not None
+                        else float(
+                            theme_pack.get(
+                                "motion_intensity",
+                                0.50,
+                            )
                         )
                     )
                     + pattern_decision.camera_boost,

@@ -5,6 +5,7 @@ from datetime import datetime
 
 from .legacy_generator import LegacyVideoGenerator
 from .execution import ProductionPlanExecutor
+from .quiz_director import IntelligentQuizDirector
 from .ai_director import (
     AICreativeDirector,
     CreativeOverrideLoader,
@@ -56,6 +57,10 @@ class VideoGenerator:
 
         self.production_plan_executor = (
             ProductionPlanExecutor()
+        )
+
+        self.intelligent_quiz_director = (
+            IntelligentQuizDirector()
         )
 
     @property
@@ -209,8 +214,35 @@ class VideoGenerator:
             )
         )
 
+        quiz_direction_plan = (
+            self.intelligent_quiz_director
+            .create_plan(
+                title=titulo_quiz,
+                quiz_type=tipo_quiz,
+                questions=perguntas_preparadas,
+                base_response_time=tempo_resposta,
+                production_plan=(
+                    production_plan.to_dict()
+                ),
+            )
+        )
+
+        self.intelligent_quiz_director.save(
+            quiz_direction_plan,
+            (
+                Path(pasta_projeto)
+                / "videos"
+                / "relatorios"
+                / "question_director_report.json"
+            )
+        )
+
         self.renderer.configurar_plano_producao(
             execution_settings
+        )
+
+        self.renderer.configurar_direcao_perguntas(
+            quiz_direction_plan
         )
 
         if hasattr(

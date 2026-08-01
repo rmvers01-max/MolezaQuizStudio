@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from .audio_sync import AudioSyncDirector
 from .execution import ExecutionSettings
+from .quiz_director import QuizDirectionPlan
 from .attention import (
     PatternBreakDirector,
     ViewerAttentionAnalyzer,
@@ -92,6 +93,8 @@ class LegacyVideoGenerator:
             ViewerAttentionAnalyzer()
         )
 
+        self.question_direction_plan = None
+
         self.execution_settings = ExecutionSettings(
             theme_pack=dict(
                 self.universal_visual_context[
@@ -112,6 +115,37 @@ class LegacyVideoGenerator:
             outro_duration=5.0,
             quality_profile="balanced",
         )
+
+    def configurar_direcao_perguntas(
+        self,
+        plan,
+    ):
+        self.question_direction_plan = plan
+
+        if hasattr(
+            self.universal_scene_renderer,
+            "configure_question_direction"
+        ):
+            self.universal_scene_renderer.configure_question_direction(
+                plan
+            )
+
+    def _direcao_pergunta(
+        self,
+        numero,
+    ):
+        if self.question_direction_plan is None:
+            return None
+
+        if hasattr(
+            self.question_direction_plan,
+            "question"
+        ):
+            return self.question_direction_plan.question(
+                numero
+            )
+
+        return None
 
     def configurar_plano_producao(
         self,
@@ -716,11 +750,23 @@ class LegacyVideoGenerator:
         audio_resposta = None
         audio_escolha = None
 
+        question_direction = (
+            self._direcao_pergunta(
+                numero
+            )
+        )
+
         # O plano define o ritmo mínimo, mas nunca corta a narração.
         duracao_pergunta = max(
             float(
-                self.execution_settings
-                .question_entry_duration
+                (
+                    question_direction
+                    .entry_duration
+                    if question_direction
+                    is not None
+                    else self.execution_settings
+                    .question_entry_duration
+                )
             ),
             0.65
         )
@@ -738,8 +784,14 @@ class LegacyVideoGenerator:
             duracao_pergunta = max(
                 audio_pergunta.duration + 0.5,
                 float(
-                    self.execution_settings
-                    .question_entry_duration
+                    (
+                        question_direction
+                        .entry_duration
+                        if question_direction
+                        is not None
+                        else self.execution_settings
+                        .question_entry_duration
+                    )
                 )
             )
 
@@ -768,8 +820,23 @@ class LegacyVideoGenerator:
         )
 
         # Contagem regressiva.
+        tempo_resposta_pergunta = max(
+            int(
+                round(
+                    (
+                        question_direction
+                        .thinking_duration
+                        if question_direction
+                        is not None
+                        else tempo_resposta
+                    )
+                )
+            ),
+            1
+        )
+
         for contador in range(
-            tempo_resposta,
+            tempo_resposta_pergunta,
             0,
             -1
         ):
@@ -785,13 +852,13 @@ class LegacyVideoGenerator:
                     scene_kind="countdown",
                     theme_pack=self._theme_pack(),
                     countdown_value=contador,
-                    countdown_maximum=tempo_resposta,
+                    countdown_maximum=tempo_resposta_pergunta,
                 )
             )
 
         tempo_inicio_resposta = (
             tempo_depois_pergunta
-            + tempo_resposta
+            + tempo_resposta_pergunta
         )
 
         quiz_preferencia = self._eh_quiz_preferencia(
@@ -800,8 +867,14 @@ class LegacyVideoGenerator:
 
         if quiz_preferencia:
             duracao_resposta = float(
-                self.execution_settings
-                .reveal_duration
+                (
+                    question_direction
+                    .reveal_duration
+                    if question_direction
+                    is not None
+                    else self.execution_settings
+                    .reveal_duration
+                )
             )
 
             if (
@@ -817,8 +890,14 @@ class LegacyVideoGenerator:
                 duracao_resposta = max(
                     audio_escolha.duration + 0.5,
                     float(
-                        self.execution_settings
-                        .reveal_duration
+                        (
+                            question_direction
+                            .reveal_duration
+                            if question_direction
+                            is not None
+                            else self.execution_settings
+                            .reveal_duration
+                        )
                     )
                 )
 
@@ -854,8 +933,14 @@ class LegacyVideoGenerator:
         else:
             # A resposta segue o plano, sem cortar a narração.
             duracao_resposta = float(
-                self.execution_settings
-                .reveal_duration
+                (
+                    question_direction
+                    .reveal_duration
+                    if question_direction
+                    is not None
+                    else self.execution_settings
+                    .reveal_duration
+                )
             )
 
             if (
@@ -871,8 +956,14 @@ class LegacyVideoGenerator:
                 duracao_resposta = max(
                     audio_resposta.duration + 0.5,
                     float(
-                        self.execution_settings
-                        .reveal_duration
+                        (
+                            question_direction
+                            .reveal_duration
+                            if question_direction
+                            is not None
+                            else self.execution_settings
+                            .reveal_duration
+                        )
                     )
                 )
 
@@ -907,7 +998,7 @@ class LegacyVideoGenerator:
                     ),
                     question_start=tempo_inicio,
                     question_duration=duracao_pergunta,
-                    response_time=tempo_resposta,
+                    response_time=tempo_resposta_pergunta,
                     reveal_duration=duracao_resposta,
                 )
             )
@@ -920,7 +1011,7 @@ class LegacyVideoGenerator:
 
         duracao_total = (
             duracao_pergunta
-            + tempo_resposta
+            + tempo_resposta_pergunta
             + duracao_resposta
         )
 
