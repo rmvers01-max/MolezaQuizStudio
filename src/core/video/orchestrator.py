@@ -4,18 +4,17 @@ import json
 from datetime import datetime
 
 from .legacy_generator import LegacyVideoGenerator
+from .ai_director import (
+    AICreativeDirector,
+    CreativeOverrideLoader,
+    ProductionPlanWriter,
+)
 from .templates.preference_renderer import ProfessionalPreferenceRenderer
 from .templates.registry import VideoTemplateRegistry
-from .universal.creative_director import (
+from .universal import (
     UniversalCreativeDirector,
-)
-from .universal.creative_plan_writer import (
     UniversalCreativePlanWriter,
-)
-from .universal.plan_writer import (
     UniversalPlanWriter,
-)
-from .universal.registry import (
     UniversalQuizAdapterRegistry,
 )
 
@@ -44,6 +43,14 @@ class VideoGenerator:
 
         self.universal_creative_writer = (
             UniversalCreativePlanWriter()
+        )
+
+        self.ai_creative_director = AICreativeDirector()
+        self.creative_override_loader = (
+            CreativeOverrideLoader()
+        )
+        self.production_plan_writer = (
+            ProductionPlanWriter()
         )
 
     @property
@@ -146,6 +153,40 @@ class VideoGenerator:
             )
         )
 
+        creative_override = (
+            self.creative_override_loader.load(
+                Path(pasta_projeto)
+                / "config"
+                / "creative_overrides.json"
+            )
+        )
+
+        production_plan = (
+            self.ai_creative_director.create_plan(
+                title=titulo_quiz,
+                quiz_type=tipo_quiz,
+                total_questions=len(
+                    perguntas_preparadas
+                ),
+                creative_plan=universal_creative_plan,
+                override=creative_override,
+            )
+        )
+
+        self.production_plan_writer.save(
+            production_plan,
+            (
+                Path(pasta_projeto)
+                / "videos"
+                / "relatorios"
+                / "ai_production_plan.json"
+            )
+        )
+
+        universal_creative_plan[
+            "ai_production_plan"
+        ] = production_plan.to_dict()
+
         if not str(texto_encerramento or "").strip():
             texto_encerramento = (
                 template.texto_encerramento_padrao()
@@ -156,11 +197,6 @@ class VideoGenerator:
             if tipo_quiz == "preferencia"
             else self.renderer
         )
-
-        if tipo_quiz != "preferencia":
-            renderer.configurar_direcao_universal(
-                universal_creative_plan
-            )
 
         if tipo_quiz == "preferencia":
             renderer.total_perguntas_contexto = len(
