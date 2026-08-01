@@ -7,7 +7,11 @@ from .legacy_generator import LegacyVideoGenerator
 from .execution import ProductionPlanExecutor
 from .quiz_director import IntelligentQuizDirector
 from .story_engine import CinematicStoryDirector
-from .intelligence import MolezaIntelligenceManager
+from .intelligence import (
+    ABTestPlanner,
+    MolezaIntelligenceManager,
+    RecommendationOverrideBuilder,
+)
 from .ai_director import (
     AICreativeDirector,
     CreativeOverrideLoader,
@@ -70,6 +74,10 @@ class VideoGenerator:
         )
 
         self.intelligence_manager = None
+        self.ab_test_planner = ABTestPlanner()
+        self.recommendation_override_builder = (
+            RecommendationOverrideBuilder()
+        )
 
     @property
     def largura(self):
@@ -298,6 +306,64 @@ class VideoGenerator:
             .build_intelligence_report()
         )
 
+        recommendations = list(
+            intelligence_report.get(
+                "recommendations",
+                []
+            )
+        )
+
+        ab_test_plan = (
+            self.ab_test_planner
+            .create_plan(
+                title=titulo_quiz,
+                quiz_type=tipo_quiz,
+                production_plan=(
+                    production_plan.to_dict()
+                ),
+                recommendations=recommendations,
+            )
+        )
+
+        self.ab_test_planner.save(
+            ab_test_plan,
+            (
+                Path(pasta_projeto)
+                / "intelligence"
+                / "experiments"
+                / f"{ab_test_plan.experiment_id}.json"
+            )
+        )
+
+        self.ab_test_planner.save(
+            ab_test_plan,
+            (
+                Path(pasta_projeto)
+                / "videos"
+                / "relatorios"
+                / "ab_test_plan.json"
+            )
+        )
+
+        suggested_overrides = (
+            self.recommendation_override_builder
+            .build(
+                production_plan=(
+                    production_plan.to_dict()
+                ),
+                recommendations=recommendations,
+            )
+        )
+
+        self.recommendation_override_builder.save(
+            suggested_overrides,
+            (
+                Path(pasta_projeto)
+                / "intelligence"
+                / "suggested_creative_overrides.json"
+            )
+        )
+
         (
             Path(pasta_projeto)
             / "videos"
@@ -311,6 +377,12 @@ class VideoGenerator:
                         .to_dict()
                     ),
                     **intelligence_report,
+                    "ab_test_plan": (
+                        ab_test_plan.to_dict()
+                    ),
+                    "suggested_overrides": (
+                        suggested_overrides
+                    ),
                 },
                 ensure_ascii=False,
                 indent=2,
