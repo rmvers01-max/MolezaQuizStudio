@@ -71,6 +71,32 @@ class UniversalSceneRenderer:
             PatternBreakDirector()
         )
 
+        self.execution_settings = {
+            "pattern_breaks_enabled": True,
+            "pattern_break_interval": 4,
+            "pattern_break_intensity": 0.82,
+            "mascot_enabled": True,
+            "mascot_intensity": 0.80,
+        }
+
+    def configure_execution(
+        self,
+        settings,
+    ):
+        if hasattr(
+            settings,
+            "to_dict"
+        ):
+            data = settings.to_dict()
+        else:
+            data = dict(
+                settings or {}
+            )
+
+        self.execution_settings.update(
+            data
+        )
+
     def create_knowledge_clip(
         self,
         question: dict,
@@ -173,6 +199,22 @@ class UniversalSceneRenderer:
                 question_number=question_number,
                 total_questions=total_questions,
                 scene_kind=scene_kind,
+                interval_override=(
+                    self.execution_settings.get(
+                        "pattern_break_interval"
+                    )
+                ),
+                enabled=bool(
+                    self.execution_settings.get(
+                        "pattern_breaks_enabled",
+                        True
+                    )
+                ),
+                intensity_override=(
+                    self.execution_settings.get(
+                        "pattern_break_intensity"
+                    )
+                ),
             )
         )
 
@@ -334,20 +376,34 @@ class UniversalSceneRenderer:
             ),
         )
 
-        image = self.mascot_life.render(
-            image,
-            scene_kind=scene_kind,
-            progress=progress,
-            focus=focus_target,
-            intensity=(
-                (
-                    0.72
-                    if scene_kind == "countdown"
-                    else 1.0
+        if bool(
+            self.execution_settings.get(
+                "mascot_enabled",
+                True
+            )
+        ):
+            base_mascot_intensity = float(
+                self.execution_settings.get(
+                    "mascot_intensity",
+                    0.80
                 )
-                + pattern_decision.mascot_boost
-            ),
-        )
+            )
+
+            image = self.mascot_life.render(
+                image,
+                scene_kind=scene_kind,
+                progress=progress,
+                focus=focus_target,
+                intensity=(
+                    base_mascot_intensity
+                    * (
+                        0.72
+                        if scene_kind == "countdown"
+                        else 1.0
+                    )
+                    + pattern_decision.mascot_boost
+                ),
+            )
 
         image = (
             self.cinematic_scene

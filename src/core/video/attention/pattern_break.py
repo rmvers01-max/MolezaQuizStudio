@@ -29,6 +29,9 @@ class PatternBreakDirector:
         question_number: int,
         total_questions: int,
         scene_kind: str,
+        interval_override: int | None = None,
+        enabled: bool = True,
+        intensity_override: float | None = None,
     ) -> PatternBreakDecision:
         number = max(
             int(question_number),
@@ -41,15 +44,26 @@ class PatternBreakDirector:
         )
 
         interval = (
-            3
-            if total <= 10
-            else 4
-            if total <= 24
-            else 5
+            max(
+                min(
+                    int(interval_override),
+                    8
+                ),
+                2
+            )
+            if interval_override is not None
+            else (
+                3
+                if total <= 10
+                else 4
+                if total <= 24
+                else 5
+            )
         )
 
         active = (
-            scene_kind == "question"
+            bool(enabled)
+            and scene_kind == "question"
             and number > 1
             and number % interval == 0
         )

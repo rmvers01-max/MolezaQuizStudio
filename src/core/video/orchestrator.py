@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 
 from .legacy_generator import LegacyVideoGenerator
+from .execution import ProductionPlanExecutor
 from .ai_director import (
     AICreativeDirector,
     CreativeOverrideLoader,
@@ -51,6 +52,10 @@ class VideoGenerator:
         )
         self.production_plan_writer = (
             ProductionPlanWriter()
+        )
+
+        self.production_plan_executor = (
+            ProductionPlanExecutor()
         )
 
     @property
@@ -187,6 +192,35 @@ class VideoGenerator:
             "ai_production_plan"
         ] = production_plan.to_dict()
 
+        execution_settings = (
+            self.production_plan_executor
+            .build_settings(
+                production_plan.to_dict()
+            )
+        )
+
+        self.production_plan_executor.save_report(
+            execution_settings,
+            (
+                Path(pasta_projeto)
+                / "videos"
+                / "relatorios"
+                / "production_execution_report.json"
+            )
+        )
+
+        self.renderer.configurar_plano_producao(
+            execution_settings
+        )
+
+        if hasattr(
+            self.preference_renderer,
+            "configurar_plano_producao"
+        ):
+            self.preference_renderer.configurar_plano_producao(
+                execution_settings
+            )
+
         if not str(texto_encerramento or "").strip():
             texto_encerramento = (
                 template.texto_encerramento_padrao()
@@ -197,6 +231,11 @@ class VideoGenerator:
             if tipo_quiz == "preferencia"
             else self.renderer
         )
+
+        if tipo_quiz != "preferencia":
+            self.renderer.configurar_direcao_universal(
+                universal_creative_plan
+            )
 
         if tipo_quiz == "preferencia":
             renderer.total_perguntas_contexto = len(

@@ -6,6 +6,7 @@ import textwrap
 from PIL import Image, ImageDraw, ImageFont
 
 from .audio_sync import AudioSyncDirector
+from .execution import ExecutionSettings
 from .attention import (
     PatternBreakDirector,
     ViewerAttentionAnalyzer,
@@ -91,6 +92,43 @@ class LegacyVideoGenerator:
             ViewerAttentionAnalyzer()
         )
 
+        self.execution_settings = ExecutionSettings(
+            theme_pack=dict(
+                self.universal_visual_context[
+                    "theme_pack"
+                ]
+            ),
+            opening_enabled=True,
+            opening_duration=4.2,
+            question_entry_duration=0.90,
+            reveal_duration=1.90,
+            pattern_breaks_enabled=True,
+            pattern_break_interval=4,
+            pattern_break_intensity=0.82,
+            mascot_enabled=True,
+            mascot_intensity=0.80,
+            audio_sync_enabled=True,
+            outro_enabled=True,
+            outro_duration=5.0,
+            quality_profile="balanced",
+        )
+
+    def configurar_plano_producao(
+        self,
+        settings,
+    ):
+        self.execution_settings = settings
+
+        self.universal_visual_context[
+            "theme_pack"
+        ] = dict(
+            settings.theme_pack
+        )
+
+        self.universal_scene_renderer.configure_execution(
+            settings
+        )
+
     def configurar_direcao_universal(
         self,
         creative_plan,
@@ -100,6 +138,17 @@ class LegacyVideoGenerator:
         )
 
     def _theme_pack(self):
+        execution_pack = getattr(
+            self.execution_settings,
+            "theme_pack",
+            {}
+        )
+
+        if execution_pack:
+            return dict(
+                execution_pack
+            )
+
         return dict(
             self.universal_visual_context.get(
                 "theme_pack",
@@ -149,11 +198,18 @@ class LegacyVideoGenerator:
             premium_theme=ThemeProxy(),
         )
 
+        target_duration = float(
+            self.execution_settings
+            .opening_duration
+        )
+
+        clip = clip.with_duration(
+            target_duration
+        )
+
         return {
             "clip": clip,
-            "duracao": float(
-                direction["duracao"]
-            ),
+            "duracao": target_duration,
         }
 
     def _clip_frame_animado(
@@ -259,6 +315,18 @@ class LegacyVideoGenerator:
                         self.total_perguntas_contexto
                     ),
                     scene_kind="question",
+                    interval_override=(
+                        self.execution_settings
+                        .pattern_break_interval
+                    ),
+                    enabled=(
+                        self.execution_settings
+                        .pattern_breaks_enabled
+                    ),
+                    intensity_override=(
+                        self.execution_settings
+                        .pattern_break_intensity
+                    ),
                 )
                 .active
             )
@@ -306,7 +374,10 @@ class LegacyVideoGenerator:
             # ABERTURA
             # ==================================
 
-            if incluir_abertura:
+            if (
+                incluir_abertura
+                and self.execution_settings.opening_enabled
+            ):
                 self._informar_progresso(
                     callback_progresso,
                     0,
@@ -412,7 +483,10 @@ class LegacyVideoGenerator:
             # ENCERRAMENTO
             # ==================================
 
-            if incluir_encerramento:
+            if (
+                incluir_encerramento
+                and self.execution_settings.outro_enabled
+            ):
                 self._informar_progresso(
                     callback_progresso,
                     total_perguntas,
@@ -420,7 +494,10 @@ class LegacyVideoGenerator:
                     "Criando tela de encerramento..."
                 )
 
-                duracao_encerramento = 5.0
+                duracao_encerramento = float(
+                    self.execution_settings
+                    .outro_duration
+                )
 
                 clips_video.append(
                     self.outro_studio.create_clip(
@@ -639,8 +716,14 @@ class LegacyVideoGenerator:
         audio_resposta = None
         audio_escolha = None
 
-        # A apresentação dura ao menos 1 segundo.
-        duracao_pergunta = 1.0
+        # O plano define o ritmo mínimo, mas nunca corta a narração.
+        duracao_pergunta = max(
+            float(
+                self.execution_settings
+                .question_entry_duration
+            ),
+            0.65
+        )
 
         if (
             usar_narracao
@@ -654,7 +737,10 @@ class LegacyVideoGenerator:
 
             duracao_pergunta = max(
                 audio_pergunta.duration + 0.5,
-                1.0
+                float(
+                    self.execution_settings
+                    .question_entry_duration
+                )
             )
 
             clips_audio.append(
@@ -713,7 +799,10 @@ class LegacyVideoGenerator:
         )
 
         if quiz_preferencia:
-            duracao_resposta = 2.0
+            duracao_resposta = float(
+                self.execution_settings
+                .reveal_duration
+            )
 
             if (
                 usar_narracao
@@ -727,7 +816,10 @@ class LegacyVideoGenerator:
 
                 duracao_resposta = max(
                     audio_escolha.duration + 0.5,
-                    2.0
+                    float(
+                        self.execution_settings
+                        .reveal_duration
+                    )
                 )
 
                 clips_audio.append(
@@ -760,8 +852,11 @@ class LegacyVideoGenerator:
             )
 
         else:
-            # A resposta permanece por ao menos 2 segundos.
-            duracao_resposta = 2.0
+            # A resposta segue o plano, sem cortar a narração.
+            duracao_resposta = float(
+                self.execution_settings
+                .reveal_duration
+            )
 
             if (
                 usar_narracao
@@ -775,7 +870,10 @@ class LegacyVideoGenerator:
 
                 duracao_resposta = max(
                     audio_resposta.duration + 0.5,
-                    2.0
+                    float(
+                        self.execution_settings
+                        .reveal_duration
+                    )
                 )
 
                 clips_audio.append(
@@ -798,26 +896,27 @@ class LegacyVideoGenerator:
                 )
             )
 
-        audio_cues = (
-            self.audio_sync
-            .build_question_cues(
-                project_root=pasta_projeto,
-                question_number=numero,
-                total_questions=(
-                    self.total_perguntas_contexto
-                ),
-                question_start=tempo_inicio,
-                question_duration=duracao_pergunta,
-                response_time=tempo_resposta,
-                reveal_duration=duracao_resposta,
+        if self.execution_settings.audio_sync_enabled:
+            audio_cues = (
+                self.audio_sync
+                .build_question_cues(
+                    project_root=pasta_projeto,
+                    question_number=numero,
+                    total_questions=(
+                        self.total_perguntas_contexto
+                    ),
+                    question_start=tempo_inicio,
+                    question_duration=duracao_pergunta,
+                    response_time=tempo_resposta,
+                    reveal_duration=duracao_resposta,
+                )
             )
-        )
 
-        clips_audio.extend(
-            self.audio_sync.create_clips(
-                audio_cues
+            clips_audio.extend(
+                self.audio_sync.create_clips(
+                    audio_cues
+                )
             )
-        )
 
         duracao_total = (
             duracao_pergunta
