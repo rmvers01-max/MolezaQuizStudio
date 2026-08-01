@@ -7,6 +7,7 @@ from .legacy_generator import LegacyVideoGenerator
 from .execution import ProductionPlanExecutor
 from .quiz_director import IntelligentQuizDirector
 from .story_engine import CinematicStoryDirector
+from .intelligence import MolezaIntelligenceManager
 from .ai_director import (
     AICreativeDirector,
     CreativeOverrideLoader,
@@ -67,6 +68,8 @@ class VideoGenerator:
         self.cinematic_story_director = (
             CinematicStoryDirector()
         )
+
+        self.intelligence_manager = None
 
     @property
     def largura(self):
@@ -264,6 +267,55 @@ class VideoGenerator:
                 / "relatorios"
                 / "cinematic_story_plan.json"
             )
+        )
+
+        self.intelligence_manager = (
+            MolezaIntelligenceManager(
+                Path(pasta_projeto)
+                / "intelligence"
+            )
+        )
+
+        production_fingerprint = (
+            self.intelligence_manager
+            .register_production(
+                title=titulo_quiz,
+                quiz_type=tipo_quiz,
+                total_questions=len(
+                    perguntas_preparadas
+                ),
+                production_plan=(
+                    production_plan.to_dict()
+                ),
+                story_plan=(
+                    story_arc_plan.to_dict()
+                ),
+            )
+        )
+
+        intelligence_report = (
+            self.intelligence_manager
+            .build_intelligence_report()
+        )
+
+        (
+            Path(pasta_projeto)
+            / "videos"
+            / "relatorios"
+            / "intelligence_report.json"
+        ).write_text(
+            json.dumps(
+                {
+                    "production_fingerprint": (
+                        production_fingerprint
+                        .to_dict()
+                    ),
+                    **intelligence_report,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
         )
 
         self.renderer.configurar_plano_producao(
