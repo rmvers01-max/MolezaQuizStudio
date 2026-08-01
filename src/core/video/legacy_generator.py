@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 from .audio_sync import AudioSyncDirector
 from .execution import ExecutionSettings
 from .quiz_director import QuizDirectionPlan
+from .story_engine import StoryArcPlan
 from .attention import (
     PatternBreakDirector,
     ViewerAttentionAnalyzer,
@@ -94,6 +95,7 @@ class LegacyVideoGenerator:
         )
 
         self.question_direction_plan = None
+        self.story_arc_plan = None
 
         self.execution_settings = ExecutionSettings(
             theme_pack=dict(
@@ -115,6 +117,37 @@ class LegacyVideoGenerator:
             outro_duration=5.0,
             quality_profile="balanced",
         )
+
+    def configurar_historia_cinematica(
+        self,
+        plan,
+    ):
+        self.story_arc_plan = plan
+
+        if hasattr(
+            self.universal_scene_renderer,
+            "configure_story_arc"
+        ):
+            self.universal_scene_renderer.configure_story_arc(
+                plan
+            )
+
+    def _story_beat(
+        self,
+        numero,
+    ):
+        if self.story_arc_plan is None:
+            return None
+
+        if hasattr(
+            self.story_arc_plan,
+            "beat"
+        ):
+            return self.story_arc_plan.beat(
+                numero
+            )
+
+        return None
 
     def configurar_direcao_perguntas(
         self,
@@ -535,7 +568,13 @@ class LegacyVideoGenerator:
 
                 clips_video.append(
                     self.outro_studio.create_clip(
-                        text=texto_encerramento,
+                        text=(
+                            self.story_arc_plan
+                            .finale_message
+                            if self.story_arc_plan
+                            is not None
+                            else texto_encerramento
+                        ),
                         duration=duracao_encerramento,
                         theme_pack=self._theme_pack(),
                     )
@@ -756,6 +795,10 @@ class LegacyVideoGenerator:
             )
         )
 
+        story_beat = self._story_beat(
+            numero
+        )
+
         # O plano define o ritmo mínimo, mas nunca corta a narração.
         duracao_pergunta = max(
             float(
@@ -868,12 +911,30 @@ class LegacyVideoGenerator:
         if quiz_preferencia:
             duracao_resposta = float(
                 (
-                    question_direction
-                    .reveal_duration
+                    (
+                        question_direction
+                        .reveal_duration
+                        * (
+                            story_beat
+                            .reveal_multiplier
+                            if story_beat
+                            is not None
+                            else 1.0
+                        )
+                    )
                     if question_direction
                     is not None
-                    else self.execution_settings
-                    .reveal_duration
+                    else (
+                        self.execution_settings
+                        .reveal_duration
+                        * (
+                            story_beat
+                            .reveal_multiplier
+                            if story_beat
+                            is not None
+                            else 1.0
+                        )
+                    )
                 )
             )
 
@@ -934,12 +995,30 @@ class LegacyVideoGenerator:
             # A resposta segue o plano, sem cortar a narração.
             duracao_resposta = float(
                 (
-                    question_direction
-                    .reveal_duration
+                    (
+                        question_direction
+                        .reveal_duration
+                        * (
+                            story_beat
+                            .reveal_multiplier
+                            if story_beat
+                            is not None
+                            else 1.0
+                        )
+                    )
                     if question_direction
                     is not None
-                    else self.execution_settings
-                    .reveal_duration
+                    else (
+                        self.execution_settings
+                        .reveal_duration
+                        * (
+                            story_beat
+                            .reveal_multiplier
+                            if story_beat
+                            is not None
+                            else 1.0
+                        )
+                    )
                 )
             )
 

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 from PIL import (
+    ImageEnhance,
     Image,
     ImageDraw,
     ImageFilter,
@@ -72,6 +73,7 @@ class UniversalSceneRenderer:
         )
 
         self.question_direction_plan = None
+        self.story_arc_plan = None
 
         self.execution_settings = {
             "pattern_breaks_enabled": True,
@@ -80,6 +82,29 @@ class UniversalSceneRenderer:
             "mascot_enabled": True,
             "mascot_intensity": 0.80,
         }
+
+    def configure_story_arc(
+        self,
+        plan,
+    ):
+        self.story_arc_plan = plan
+
+    def _story_beat(
+        self,
+        question_number,
+    ):
+        if self.story_arc_plan is None:
+            return None
+
+        if hasattr(
+            self.story_arc_plan,
+            "beat"
+        ):
+            return self.story_arc_plan.beat(
+                question_number
+            )
+
+        return None
 
     def configure_question_direction(
         self,
@@ -199,6 +224,10 @@ class UniversalSceneRenderer:
             self._question_direction(
                 question_number
             )
+        )
+
+        story_beat = self._story_beat(
+            question_number
         )
 
         alternatives = list(
@@ -415,13 +444,31 @@ class UniversalSceneRenderer:
         ):
             base_mascot_intensity = float(
                 (
-                    question_direction
-                    .mascot_intensity
+                    (
+                        question_direction
+                        .mascot_intensity
+                        * (
+                            story_beat
+                            .mascot_multiplier
+                            if story_beat
+                            is not None
+                            else 1.0
+                        )
+                    )
                     if question_direction
                     is not None
-                    else self.execution_settings.get(
-                        "mascot_intensity",
-                        0.80
+                    else (
+                        self.execution_settings.get(
+                            "mascot_intensity",
+                            0.80
+                        )
+                        * (
+                            story_beat
+                            .mascot_multiplier
+                            if story_beat
+                            is not None
+                            else 1.0
+                        )
                     )
                 )
             )
@@ -455,6 +502,13 @@ class UniversalSceneRenderer:
                         float(
                             question_direction
                             .camera_intensity
+                            * (
+                                story_beat
+                                .camera_multiplier
+                                if story_beat
+                                is not None
+                                else 1.0
+                            )
                         )
                         if question_direction
                         is not None
@@ -462,6 +516,13 @@ class UniversalSceneRenderer:
                             theme_pack.get(
                                 "motion_intensity",
                                 0.50,
+                            )
+                            * (
+                                story_beat
+                                .camera_multiplier
+                                if story_beat
+                                is not None
+                                else 1.0
                             )
                         )
                     )
@@ -471,7 +532,90 @@ class UniversalSceneRenderer:
             )
         )
 
+        image = self._apply_color_script(
+            image=image,
+            story_beat=story_beat,
+        )
+
         return image
+
+    def _apply_color_script(
+        self,
+        *,
+        image,
+        story_beat,
+    ):
+        if story_beat is None:
+            return image
+
+        contrast = (
+            1.0
+            + float(
+                story_beat.contrast_shift
+            )
+        )
+
+        saturation = (
+            1.0
+            + float(
+                story_beat.saturation_shift
+            )
+        )
+
+        result = ImageEnhance.Contrast(
+            image.convert("RGB")
+        ).enhance(
+            contrast
+        )
+
+        result = ImageEnhance.Color(
+            result
+        ).enhance(
+            saturation
+        )
+
+        rgba = result.convert("RGBA")
+
+        warmth = float(
+            story_beat.warmth_shift
+        )
+
+        if abs(warmth) > 0.001:
+            overlay = Image.new(
+                "RGBA",
+                rgba.size,
+                (
+                    255,
+                    175,
+                    95,
+                    int(
+                        min(
+                            abs(warmth)
+                            * 255,
+                            28
+                        )
+                    )
+                )
+                if warmth > 0
+                else (
+                    90,
+                    150,
+                    255,
+                    int(
+                        min(
+                            abs(warmth)
+                            * 255,
+                            28
+                        )
+                    )
+                ),
+            )
+
+            rgba.alpha_composite(
+                overlay
+            )
+
+        return rgba
 
     def _background(
         self,

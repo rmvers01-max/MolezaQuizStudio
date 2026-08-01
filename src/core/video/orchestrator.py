@@ -6,6 +6,7 @@ from datetime import datetime
 from .legacy_generator import LegacyVideoGenerator
 from .execution import ProductionPlanExecutor
 from .quiz_director import IntelligentQuizDirector
+from .story_engine import CinematicStoryDirector
 from .ai_director import (
     AICreativeDirector,
     CreativeOverrideLoader,
@@ -61,6 +62,10 @@ class VideoGenerator:
 
         self.intelligent_quiz_director = (
             IntelligentQuizDirector()
+        )
+
+        self.cinematic_story_director = (
+            CinematicStoryDirector()
         )
 
     @property
@@ -237,12 +242,40 @@ class VideoGenerator:
             )
         )
 
+        story_arc_plan = (
+            self.cinematic_story_director
+            .create_plan(
+                title=titulo_quiz,
+                quiz_type=tipo_quiz,
+                total_questions=len(
+                    perguntas_preparadas
+                ),
+                question_plan=(
+                    quiz_direction_plan.to_dict()
+                ),
+            )
+        )
+
+        self.cinematic_story_director.save(
+            story_arc_plan,
+            (
+                Path(pasta_projeto)
+                / "videos"
+                / "relatorios"
+                / "cinematic_story_plan.json"
+            )
+        )
+
         self.renderer.configurar_plano_producao(
             execution_settings
         )
 
         self.renderer.configurar_direcao_perguntas(
             quiz_direction_plan
+        )
+
+        self.renderer.configurar_historia_cinematica(
+            story_arc_plan
         )
 
         if hasattr(
