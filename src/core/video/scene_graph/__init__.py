@@ -1,3 +1,8 @@
+from .quality import (
+    QualityFinding,
+    QualityPreflightReport,
+    SceneGraphQualityDirector,
+)
 from .layout_intelligence import (
     LayoutAdjustment,
     LayoutIntelligenceReport,
@@ -15,6 +20,9 @@ from .resolver import SafeAreaResolver
 from .validation import SceneGraphValidator, SceneIssue
 
 __all__ = [
+    "QualityFinding",
+    "QualityPreflightReport",
+    "SceneGraphQualityDirector",
     "LayoutAdjustment",
     "LayoutIntelligenceReport",
     "SceneLayoutIntelligence",

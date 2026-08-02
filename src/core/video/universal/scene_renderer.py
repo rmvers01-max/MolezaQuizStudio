@@ -22,6 +22,7 @@ from ..scene_graph import (
     SceneRenderContext,
     ScopedMaterialRenderer,
     SceneLayoutIntelligence,
+    SceneGraphQualityDirector,
 )
 
 from ..attention import (
@@ -81,8 +82,10 @@ class UniversalSceneRenderer:
         self.scene_graph_focus = SceneGraphFocusResolver()
         self.scoped_materials = ScopedMaterialRenderer()
         self.layout_intelligence = SceneLayoutIntelligence()
+        self.quality_director = SceneGraphQualityDirector()
         self.last_scene_graph_report = None
         self.last_layout_intelligence_report = None
+        self.last_quality_preflight_report = None
 
         self.eye_focus = EyeFocusDirector()
         self.cinematic_scene = (
@@ -590,8 +593,37 @@ class UniversalSceneRenderer:
             else:
                 mascot_node.bounds = mascot_node.bounds.__class__(self.width - mascot_node.bounds.width - 18, self.height - mascot_node.bounds.height - 8, mascot_node.bounds.width, mascot_node.bounds.height)
 
-        graph = self.scene_graph_resolver.resolve(graph)
-        graph_issues = self.scene_graph_validator.validate(graph)
+        graph = self.scene_graph_resolver.resolve(
+            graph
+        )
+
+        self.last_quality_preflight_report = (
+            self.quality_director.preflight(
+                graph=graph,
+                scene_kind=scene_kind,
+                question_text=str(
+                    question.get(
+                        "pergunta",
+                        ""
+                    )
+                ),
+                alternatives=[
+                    str(value)
+                    for value in alternatives
+                ],
+                has_image=has_image,
+                image_path=(
+                    str(image_path)
+                    if image_path
+                    else None
+                ),
+                theme_pack=theme_pack,
+            )
+        )
+
+        graph_issues = self.scene_graph_validator.validate(
+            graph
+        )
         graph.metadata.update({
             "focus_node_id": graph_focus.node_id,
             "effects_migrated": [
@@ -604,12 +636,22 @@ class UniversalSceneRenderer:
                 "color_script",
             ],
             "material_binding": True,
-            "graph_version": "3.0",
+            "graph_version": "4.0",
         })
         self.last_scene_graph_report = self.scene_graph_diagnostics.graph_to_dict(
             graph,
             graph_issues,
         )
+        self.last_scene_graph_report[
+            "quality_preflight"
+        ] = (
+            self.last_quality_preflight_report
+            .to_dict()
+            if self.last_quality_preflight_report
+            is not None
+            else None
+        )
+
         self.last_scene_graph_report[
             "layout_intelligence"
         ] = (
@@ -636,10 +678,131 @@ class UniversalSceneRenderer:
             },
         )
 
-        image = graph.render(
-            Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0)),
-            graph_context,
+        base_canvas = Image.new(
+            "RGBA",
+            (
+                self.width,
+                self.height,
+            ),
+            (
+                0,
+                0,
+                0,
+                0,
+            ),
         )
+
+        if (
+            self.last_quality_preflight_report
+            is not None
+            and not self.last_quality_preflight_report
+            .can_render
+        ):
+            image = self._quality_fallback_frame(
+                image=self._background(
+                    theme_pack=theme_pack,
+                    time=time,
+                    scene_kind=scene_kind,
+                ),
+                question_text=str(
+                    question.get(
+                        "pergunta",
+                        ""
+                    )
+                ),
+            )
+        else:
+            image = graph.render(
+                base_canvas,
+                graph_context,
+            )
+
+        return image
+
+    def _quality_fallback_frame(
+        self,
+        *,
+        image,
+        question_text,
+    ):
+        draw = ImageDraw.Draw(image)
+
+        draw.rounded_rectangle(
+            (
+                150,
+                220,
+                self.width - 150,
+                500,
+            ),
+            radius=34,
+            fill=(255, 255, 255, 245),
+            outline=(185, 65, 65, 255),
+            width=6,
+        )
+
+        from .components.utils import (
+            centered_x,
+            fit_font,
+        )
+
+        title = (
+            "Não foi possível montar esta pergunta"
+        )
+
+        title_font = fit_font(
+            draw=draw,
+            text=title,
+            max_width=self.width - 360,
+            start_size=38,
+            min_size=24,
+            bold=True,
+        )
+
+        draw.text(
+            (
+                centered_x(
+                    draw,
+                    title,
+                    title_font,
+                    self.width,
+                ),
+                265,
+            ),
+            title,
+            font=title_font,
+            fill=(120, 35, 35),
+        )
+
+        safe_text = (
+            question_text[:120]
+            if question_text
+            else "Pergunta sem conteúdo."
+        )
+
+        body_font = fit_font(
+            draw=draw,
+            text=safe_text,
+            max_width=self.width - 420,
+            start_size=27,
+            min_size=18,
+            bold=False,
+        )
+
+        draw.text(
+            (
+                centered_x(
+                    draw,
+                    safe_text,
+                    body_font,
+                    self.width,
+                ),
+                355,
+            ),
+            safe_text,
+            font=body_font,
+            fill=(50, 50, 65),
+        )
+
         return image
 
     def _apply_color_script(

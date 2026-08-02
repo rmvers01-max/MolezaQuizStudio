@@ -125,6 +125,42 @@ class LegacyVideoGenerator:
             None,
         )
 
+    def _salvar_relatorio_qualidade(
+        self,
+        pasta_projeto,
+    ):
+        report = getattr(
+            self.universal_scene_renderer,
+            "last_quality_preflight_report",
+            None,
+        )
+
+        if report is None:
+            return
+
+        import json
+
+        path = (
+            Path(pasta_projeto)
+            / "videos"
+            / "relatorios"
+            / "quality_preflight_report.json"
+        )
+
+        path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        path.write_text(
+            json.dumps(
+                report.to_dict(),
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
     def _salvar_relatorio_layout(
         self,
         pasta_projeto,
@@ -1138,6 +1174,10 @@ class LegacyVideoGenerator:
         )
 
         self._salvar_relatorio_layout(
+            pasta_projeto
+        )
+
+        self._salvar_relatorio_qualidade(
             pasta_projeto
         )
 
