@@ -20,6 +20,7 @@ from ..scene_graph import (
     SceneGraphFocusResolver,
     SceneGraphValidator,
     SceneRenderContext,
+    ScopedMaterialRenderer,
 )
 
 from ..attention import (
@@ -77,6 +78,7 @@ class UniversalSceneRenderer:
         self.scene_graph_resolver = SafeAreaResolver()
         self.scene_graph_diagnostics = SceneGraphDiagnostics()
         self.scene_graph_focus = SceneGraphFocusResolver()
+        self.scoped_materials = ScopedMaterialRenderer()
         self.last_scene_graph_report = None
 
         self.eye_focus = EyeFocusDirector()
@@ -360,7 +362,52 @@ class UniversalSceneRenderer:
                 )
             )
             renderers[f"choice_{index}"] = component_renderer(
-                ChoiceComponent(alternative, index, highlighted)
+                ChoiceComponent(
+                    alternative,
+                    index,
+                    highlighted,
+                )
+            )
+
+            def make_sheen_renderer(
+                choice_index,
+                is_highlighted,
+            ):
+                def render_sheen(
+                    canvas,
+                    bounds,
+                    graph_context,
+                ):
+                    phase = (
+                        progress
+                        + choice_index * 0.17
+                    ) % 1.0
+
+                    intensity = (
+                        0.38
+                        if is_highlighted
+                        else 0.20
+                    )
+
+                    return (
+                        self.scoped_materials
+                        .apply_sheen(
+                            canvas=canvas,
+                            bounds=bounds,
+                            progress=phase,
+                            color=(255, 255, 255),
+                            intensity=intensity,
+                            corner_radius=22,
+                        )
+                    )
+
+                return render_sheen
+
+            renderers[
+                f"choice_{index}_sheen"
+            ] = make_sheen_renderer(
+                index,
+                highlighted,
             )
 
         if scene_kind == "countdown" and countdown_value is not None:
@@ -373,8 +420,56 @@ class UniversalSceneRenderer:
 
         if scene_kind == "reveal":
             renderers["answer"] = component_renderer(
-                AnswerComponent(correct_answer)
+                AnswerComponent(
+                    correct_answer
+                )
             )
+
+            def answer_inner_glow_renderer(
+                canvas,
+                bounds,
+                graph_context,
+            ):
+                reveal_intensity = (
+                    float(
+                        question_direction
+                        .reveal_intensity
+                    )
+                    if question_direction
+                    is not None
+                    else 0.72
+                )
+
+                if story_beat is not None:
+                    reveal_intensity *= (
+                        story_beat
+                        .reveal_multiplier
+                    )
+
+                return (
+                    self.scoped_materials
+                    .apply_inner_glow(
+                        canvas=canvas,
+                        bounds=bounds,
+                        progress=progress,
+                        color=tuple(
+                            theme_pack.get(
+                                "accent_color",
+                                (255, 215, 65),
+                            )
+                        ),
+                        intensity=min(
+                            reveal_intensity,
+                            1.0,
+                        ),
+                        corner_radius=28,
+                        width=8,
+                    )
+                )
+
+            renderers[
+                "answer_inner_glow"
+            ] = answer_inner_glow_renderer
 
 
         # O foco agora é resolvido a partir dos nós estruturais.
@@ -412,11 +507,6 @@ class UniversalSceneRenderer:
                 focus_target,
                 accent_color=tuple(theme_pack.get("accent_color", (255, 215, 65))),
             )
-
-        def reveal_renderer(canvas, bounds, ctx):
-            if scene_kind == "reveal":
-                self._reveal_effect(canvas, progress, theme_pack)
-            return canvas
 
         def mascot_renderer(canvas, bounds, ctx):
             if not bool(self.execution_settings.get("mascot_enabled", True)):
@@ -460,7 +550,6 @@ class UniversalSceneRenderer:
         effect_renderers = {
             "pattern_accent": pattern_renderer,
             "focus_effect": focus_renderer,
-            "reveal_effect": reveal_renderer,
             "mascot": mascot_renderer,
             "post_process": post_process_renderer,
         }
@@ -482,8 +571,17 @@ class UniversalSceneRenderer:
         graph_issues = self.scene_graph_validator.validate(graph)
         graph.metadata.update({
             "focus_node_id": graph_focus.node_id,
-            "effects_migrated": ["reveal", "pattern_break", "eye_focus", "mascot", "camera", "color_script"],
-            "graph_version": "2.0",
+            "effects_migrated": [
+                "scoped_card_sheen",
+                "scoped_answer_glow",
+                "pattern_break",
+                "eye_focus",
+                "mascot",
+                "camera",
+                "color_script",
+            ],
+            "material_binding": True,
+            "graph_version": "3.0",
         })
         self.last_scene_graph_report = self.scene_graph_diagnostics.graph_to_dict(graph, graph_issues)
 

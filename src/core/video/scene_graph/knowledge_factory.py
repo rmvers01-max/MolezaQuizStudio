@@ -60,16 +60,67 @@ class KnowledgeSceneGraphFactory:
                 renderer=renderers.get("main_image"),
             ))
 
-        for index, box in enumerate(layout.choices[:alternative_count], start=1):
-            root.add(SceneNode(
-                f"choice_{index}",
-                Rect(box.x, box.y, box.width, box.height),
-                z_index=20,
-                priority=90,
-                safe_area=True,
-                tags={"content", "choice"},
-                renderer=renderers.get(f"choice_{index}"),
-            ))
+        for index, box in enumerate(
+            layout.choices[:alternative_count],
+            start=1,
+        ):
+            choice = root.add(
+                SceneNode(
+                    f"choice_{index}",
+                    Rect(
+                        box.x,
+                        box.y,
+                        box.width,
+                        box.height,
+                    ),
+                    z_index=20,
+                    priority=90,
+                    safe_area=True,
+                    clip_to_bounds=True,
+                    clip_shape="rounded_rectangle",
+                    corner_radius=22,
+                    tags={
+                        "content",
+                        "choice",
+                        "material_surface",
+                    },
+                    renderer=renderers.get(
+                        f"choice_{index}"
+                    ),
+                )
+            )
+
+            choice.add(
+                SceneNode(
+                    f"choice_{index}_sheen",
+                    Rect(
+                        box.x,
+                        box.y,
+                        box.width,
+                        box.height,
+                    ),
+                    z_index=2,
+                    priority=8,
+                    allow_overlap=True,
+                    clip_to_bounds=True,
+                    clip_shape="rounded_rectangle",
+                    corner_radius=22,
+                    tags={
+                        "effect",
+                        "material",
+                        "sheen",
+                    },
+                    metadata={
+                        "scope": "target",
+                        "target_node_id": (
+                            f"choice_{index}"
+                        ),
+                    },
+                    renderer=renderers.get(
+                        f"choice_{index}_sheen"
+                    ),
+                )
+            )
 
         if scene_kind == "countdown":
             root.add(SceneNode(
@@ -83,26 +134,62 @@ class KnowledgeSceneGraphFactory:
             ))
 
         if scene_kind == "reveal":
-            root.add(SceneNode(
-                "answer",
-                Rect(layout.answer.x, layout.answer.y, layout.answer.width, layout.answer.height),
-                z_index=40,
-                priority=100,
-                safe_area=True,
-                tags={"content", "answer", "primary"},
-                renderer=renderers.get("answer"),
-            ))
+            answer = root.add(
+                SceneNode(
+                    "answer",
+                    Rect(
+                        layout.answer.x,
+                        layout.answer.y,
+                        layout.answer.width,
+                        layout.answer.height,
+                    ),
+                    z_index=40,
+                    priority=100,
+                    safe_area=True,
+                    clip_to_bounds=True,
+                    clip_shape="rounded_rectangle",
+                    corner_radius=28,
+                    tags={
+                        "content",
+                        "answer",
+                        "primary",
+                        "material_surface",
+                    },
+                    renderer=renderers.get(
+                        "answer"
+                    ),
+                )
+            )
 
-        root.add(SceneNode(
-            "reveal_effect",
-            Rect(0, 0, self.width, self.height),
-            z_index=48,
-            priority=12,
-            allow_overlap=True,
-            tags={"effect", "reveal"},
-            metadata={"scope": "answer"},
-            renderer=renderers.get("reveal_effect"),
-        ))
+            answer.add(
+                SceneNode(
+                    "answer_inner_glow",
+                    Rect(
+                        layout.answer.x,
+                        layout.answer.y,
+                        layout.answer.width,
+                        layout.answer.height,
+                    ),
+                    z_index=3,
+                    priority=7,
+                    allow_overlap=True,
+                    clip_to_bounds=True,
+                    clip_shape="rounded_rectangle",
+                    corner_radius=28,
+                    tags={
+                        "effect",
+                        "reveal",
+                        "inner_glow",
+                    },
+                    metadata={
+                        "scope": "target",
+                        "target_node_id": "answer",
+                    },
+                    renderer=renderers.get(
+                        "answer_inner_glow"
+                    ),
+                )
+            )
 
         root.add(SceneNode(
             "pattern_accent",
@@ -155,6 +242,6 @@ class KnowledgeSceneGraphFactory:
                 "scene_kind": scene_kind,
                 "has_image": has_image,
                 "alternative_count": alternative_count,
-                "graph_version": "1.0",
+                "graph_version": "3.0",
             },
         )

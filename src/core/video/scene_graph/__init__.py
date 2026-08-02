@@ -1,3 +1,5 @@
+from .effects import EffectBinding
+from .materials import SceneMaskFactory, ScopedMaterialRenderer
 from .focus import GraphFocusTarget, SceneGraphFocusResolver
 from .context import SceneRenderContext
 from .diagnostics import SceneGraphDiagnostics
@@ -8,6 +10,9 @@ from .resolver import SafeAreaResolver
 from .validation import SceneGraphValidator, SceneIssue
 
 __all__ = [
+    "EffectBinding",
+    "SceneMaskFactory",
+    "ScopedMaterialRenderer",
     "GraphFocusTarget",
     "KnowledgeSceneGraphFactory",
     "SceneGraphFocusResolver",

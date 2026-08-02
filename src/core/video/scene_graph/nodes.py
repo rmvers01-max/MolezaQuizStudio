@@ -7,6 +7,7 @@ from PIL import Image
 
 from .context import SceneRenderContext
 from .geometry import Rect
+from .materials import SceneMaskFactory
 
 
 RenderFunction = Callable[[Image.Image, Rect, SceneRenderContext], Image.Image | None]
@@ -23,12 +24,16 @@ class SceneNode:
     safe_area: bool = False
     allow_overlap: bool = False
     clip_to_bounds: bool = False
+    clip_shape: str = "rectangle"
+    corner_radius: int = 0
+    parent_id: str | None = None
     tags: set[str] = field(default_factory=set)
     metadata: dict[str, Any] = field(default_factory=dict)
     renderer: RenderFunction | None = None
     children: list["SceneNode"] = field(default_factory=list)
 
     def add(self, node: "SceneNode") -> "SceneNode":
+        node.parent_id = self.node_id
         self.children.append(node)
         return node
 
@@ -48,17 +53,45 @@ class SceneNode:
         result = canvas
         if self.renderer is not None:
             if self.clip_to_bounds:
-                layer = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
-                rendered = self.renderer(layer, self.bounds, context)
+                layer = Image.new(
+                    "RGBA",
+                    canvas.size,
+                    (0, 0, 0, 0),
+                )
+
+                rendered = self.renderer(
+                    layer,
+                    self.bounds,
+                    context,
+                )
+
                 if rendered is not None:
                     layer = rendered
-                mask = Image.new("L", canvas.size, 0)
-                from PIL import ImageDraw
-                ImageDraw.Draw(mask).rectangle(self.bounds.as_tuple(), fill=int(255 * self.opacity))
-                clipped = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
-                clipped.paste(layer, (0, 0), mask)
+
+                mask = SceneMaskFactory().create(
+                    canvas_size=canvas.size,
+                    bounds=self.bounds,
+                    shape=self.clip_shape,
+                    corner_radius=self.corner_radius,
+                    opacity=self.opacity,
+                )
+
+                clipped = Image.new(
+                    "RGBA",
+                    canvas.size,
+                    (0, 0, 0, 0),
+                )
+
+                clipped.paste(
+                    layer,
+                    (0, 0),
+                    mask,
+                )
+
                 result = canvas.copy()
-                result.alpha_composite(clipped)
+                result.alpha_composite(
+                    clipped
+                )
             else:
                 rendered = self.renderer(result, self.bounds, context)
                 if rendered is not None:
