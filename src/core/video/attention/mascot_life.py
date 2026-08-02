@@ -73,6 +73,24 @@ class MascotLifeEngine:
 
         return result
 
+
+    def render_asset(
+        self,
+        *,
+        scene_kind: str,
+        progress: float,
+        intensity: float = 1.0,
+        size: tuple[int, int] = (178, 178),
+    ):
+        pose, behavior = self._behavior(scene_kind)
+        return self.character.renderizar(
+            pose=pose,
+            progresso=progress,
+            tamanho_base=size,
+            comportamento=behavior,
+            intensidade=intensity,
+        )
+
     def _behavior(
         self,
         scene_kind: str,

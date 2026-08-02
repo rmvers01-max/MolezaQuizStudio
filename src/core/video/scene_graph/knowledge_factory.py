@@ -94,12 +94,24 @@ class KnowledgeSceneGraphFactory:
             ))
 
         root.add(SceneNode(
+            "reveal_effect",
+            Rect(0, 0, self.width, self.height),
+            z_index=48,
+            priority=12,
+            allow_overlap=True,
+            tags={"effect", "reveal"},
+            metadata={"scope": "answer"},
+            renderer=renderers.get("reveal_effect"),
+        ))
+
+        root.add(SceneNode(
             "pattern_accent",
             Rect(0, 0, self.width, self.height),
             z_index=50,
             priority=10,
             allow_overlap=True,
-            tags={"effect"},
+            tags={"effect", "pattern_break"},
+            metadata={"scope": "scene"},
             renderer=renderers.get("pattern_accent"),
         ))
 
@@ -110,6 +122,7 @@ class KnowledgeSceneGraphFactory:
             priority=10,
             allow_overlap=True,
             tags={"effect", "focus"},
+            metadata={"scope": "focus_target"},
             renderer=renderers.get("focus_effect"),
         ))
 
@@ -120,7 +133,7 @@ class KnowledgeSceneGraphFactory:
             priority=45,
             allow_overlap=False,
             tags={"character"},
-            metadata={"movable": True},
+            metadata={"movable": True, "opposite_focus": True},
             renderer=renderers.get("mascot"),
         ))
 

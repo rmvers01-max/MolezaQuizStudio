@@ -47,9 +47,22 @@ class SceneNode:
 
         result = canvas
         if self.renderer is not None:
-            rendered = self.renderer(result, self.bounds, context)
-            if rendered is not None:
-                result = rendered
+            if self.clip_to_bounds:
+                layer = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+                rendered = self.renderer(layer, self.bounds, context)
+                if rendered is not None:
+                    layer = rendered
+                mask = Image.new("L", canvas.size, 0)
+                from PIL import ImageDraw
+                ImageDraw.Draw(mask).rectangle(self.bounds.as_tuple(), fill=int(255 * self.opacity))
+                clipped = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+                clipped.paste(layer, (0, 0), mask)
+                result = canvas.copy()
+                result.alpha_composite(clipped)
+            else:
+                rendered = self.renderer(result, self.bounds, context)
+                if rendered is not None:
+                    result = rendered
 
         for child in sorted(self.children, key=lambda item: item.z_index):
             result = child.render(result, context)

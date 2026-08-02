@@ -17,6 +17,7 @@ from ..scene_graph import (
     KnowledgeSceneGraphFactory,
     SafeAreaResolver,
     SceneGraphDiagnostics,
+    SceneGraphFocusResolver,
     SceneGraphValidator,
     SceneRenderContext,
 )
@@ -75,6 +76,7 @@ class UniversalSceneRenderer:
         self.scene_graph_validator = SceneGraphValidator()
         self.scene_graph_resolver = SafeAreaResolver()
         self.scene_graph_diagnostics = SceneGraphDiagnostics()
+        self.scene_graph_focus = SceneGraphFocusResolver()
         self.last_scene_graph_report = None
 
         self.eye_focus = EyeFocusDirector()
@@ -374,6 +376,8 @@ class UniversalSceneRenderer:
                 AnswerComponent(correct_answer)
             )
 
+
+        # O foco agora é resolvido a partir dos nós estruturais.
         graph = self.scene_graph_factory.build(
             layout=layout,
             renderers=renderers,
@@ -381,14 +385,107 @@ class UniversalSceneRenderer:
             has_image=has_image,
             scene_kind=scene_kind,
         )
+
+        graph_focus = self.scene_graph_focus.resolve(
+            graph,
+            scene_kind,
+        )
+        from ..attention.eye_focus import FocusTarget
+        focus_target = FocusTarget(
+            x=graph_focus.x,
+            y=graph_focus.y,
+            radius=graph_focus.radius,
+            intensity=graph_focus.intensity,
+        )
+
+        def pattern_renderer(canvas, bounds, ctx):
+            return self.pattern_break.apply_accent(
+                image=canvas,
+                decision=pattern_decision,
+                accent_color=tuple(theme_pack.get("accent_color", (255, 215, 65))),
+                progress=progress,
+            )
+
+        def focus_renderer(canvas, bounds, ctx):
+            return self.eye_focus.apply(
+                canvas,
+                focus_target,
+                accent_color=tuple(theme_pack.get("accent_color", (255, 215, 65))),
+            )
+
+        def reveal_renderer(canvas, bounds, ctx):
+            if scene_kind == "reveal":
+                self._reveal_effect(canvas, progress, theme_pack)
+            return canvas
+
+        def mascot_renderer(canvas, bounds, ctx):
+            if not bool(self.execution_settings.get("mascot_enabled", True)):
+                return canvas
+            base = float(
+                question_direction.mascot_intensity
+                if question_direction is not None
+                else self.execution_settings.get("mascot_intensity", 0.80)
+            )
+            if story_beat is not None:
+                base *= story_beat.mascot_multiplier
+            intensity = base * (0.72 if scene_kind == "countdown" else 1.0) + pattern_decision.mascot_boost
+            asset, dx, dy = self.mascot_life.render_asset(
+                scene_kind=scene_kind,
+                progress=progress,
+                intensity=intensity,
+                size=(bounds.width, bounds.height),
+            )
+            if asset is not None:
+                canvas.alpha_composite(asset, (bounds.x + dx, bounds.y + dy))
+            return canvas
+
+        def post_process_renderer(canvas, bounds, ctx):
+            motion = float(
+                question_direction.camera_intensity
+                if question_direction is not None
+                else theme_pack.get("motion_intensity", 0.50)
+            )
+            if story_beat is not None:
+                motion *= story_beat.camera_multiplier
+            canvas = self.cinematic_scene.apply_camera(
+                canvas,
+                target=focus_target,
+                time=time,
+                progress=progress,
+                scene_kind=scene_kind,
+                motion_intensity=min(motion + pattern_decision.camera_boost, 1.0),
+            )
+            return self._apply_color_script(image=canvas, story_beat=story_beat)
+
+        effect_renderers = {
+            "pattern_accent": pattern_renderer,
+            "focus_effect": focus_renderer,
+            "reveal_effect": reveal_renderer,
+            "mascot": mascot_renderer,
+            "post_process": post_process_renderer,
+        }
+        for node_id, renderer in effect_renderers.items():
+            node = graph.find(node_id if node_id != "post_process" else "camera_and_color")
+            if node is not None:
+                node.renderer = renderer
+                node.visible = True
+
+        # Posiciona o mascote no lado oposto ao foco antes da resolução de colisões.
+        mascot_node = graph.find("mascot")
+        if mascot_node is not None:
+            if focus_target.x >= self.width // 2:
+                mascot_node.bounds = mascot_node.bounds.__class__(18, self.height - mascot_node.bounds.height - 8, mascot_node.bounds.width, mascot_node.bounds.height)
+            else:
+                mascot_node.bounds = mascot_node.bounds.__class__(self.width - mascot_node.bounds.width - 18, self.height - mascot_node.bounds.height - 8, mascot_node.bounds.width, mascot_node.bounds.height)
+
         graph = self.scene_graph_resolver.resolve(graph)
         graph_issues = self.scene_graph_validator.validate(graph)
-        self.last_scene_graph_report = (
-            self.scene_graph_diagnostics.graph_to_dict(
-                graph,
-                graph_issues,
-            )
-        )
+        graph.metadata.update({
+            "focus_node_id": graph_focus.node_id,
+            "effects_migrated": ["reveal", "pattern_break", "eye_focus", "mascot", "camera", "color_script"],
+            "graph_version": "2.0",
+        })
+        self.last_scene_graph_report = self.scene_graph_diagnostics.graph_to_dict(graph, graph_issues)
 
         graph_context = SceneRenderContext(
             width=self.width,
@@ -402,174 +499,14 @@ class UniversalSceneRenderer:
             metadata={
                 "question_direction": question_direction,
                 "story_beat": story_beat,
+                "focus_node_id": graph_focus.node_id,
             },
         )
 
-        # Render only structural nodes first. Effects remain in the existing
-        # post-processing pipeline during this migration Sprint.
-        for node_id in (
-            "pattern_accent",
-            "focus_effect",
-            "mascot",
-            "camera_and_color",
-        ):
-            node = graph.find(node_id)
-            if node is not None:
-                node.visible = False
-
         image = graph.render(
-            Image.new(
-                "RGBA",
-                (self.width, self.height),
-                (0, 0, 0, 0),
-            ),
+            Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0)),
             graph_context,
         )
-
-        if scene_kind == "reveal":
-            self._reveal_effect(
-                image=image,
-                progress=progress,
-                theme_pack=theme_pack,
-            )
-
-        image = (
-            self.pattern_break
-            .apply_accent(
-                image=image,
-                decision=pattern_decision,
-                accent_color=tuple(
-                    theme_pack.get(
-                        "accent_color",
-                        (255, 215, 65),
-                    )
-                ),
-                progress=progress,
-            )
-        )
-
-        focus_target = (
-            self.eye_focus
-            .resolve_knowledge_target(
-                scene_kind=scene_kind,
-                has_image=has_image,
-                width=self.width,
-                height=self.height,
-            )
-        )
-
-        image = self.eye_focus.apply(
-            image,
-            focus_target,
-            accent_color=tuple(
-                theme_pack.get(
-                    "accent_color",
-                    (255, 215, 65),
-                )
-            ),
-        )
-
-        if bool(
-            self.execution_settings.get(
-                "mascot_enabled",
-                True
-            )
-        ):
-            base_mascot_intensity = float(
-                (
-                    (
-                        question_direction
-                        .mascot_intensity
-                        * (
-                            story_beat
-                            .mascot_multiplier
-                            if story_beat
-                            is not None
-                            else 1.0
-                        )
-                    )
-                    if question_direction
-                    is not None
-                    else (
-                        self.execution_settings.get(
-                            "mascot_intensity",
-                            0.80
-                        )
-                        * (
-                            story_beat
-                            .mascot_multiplier
-                            if story_beat
-                            is not None
-                            else 1.0
-                        )
-                    )
-                )
-            )
-
-            image = self.mascot_life.render(
-                image,
-                scene_kind=scene_kind,
-                progress=progress,
-                focus=focus_target,
-                intensity=(
-                    base_mascot_intensity
-                    * (
-                        0.72
-                        if scene_kind == "countdown"
-                        else 1.0
-                    )
-                    + pattern_decision.mascot_boost
-                ),
-            )
-
-        image = (
-            self.cinematic_scene
-            .apply_camera(
-                image,
-                target=focus_target,
-                time=time,
-                progress=progress,
-                scene_kind=scene_kind,
-                motion_intensity=min(
-                    (
-                        float(
-                            question_direction
-                            .camera_intensity
-                            * (
-                                story_beat
-                                .camera_multiplier
-                                if story_beat
-                                is not None
-                                else 1.0
-                            )
-                        )
-                        if question_direction
-                        is not None
-                        else float(
-                            theme_pack.get(
-                                "motion_intensity",
-                                0.50,
-                            )
-                            * (
-                                story_beat
-                                .camera_multiplier
-                                if story_beat
-                                is not None
-                                else 1.0
-                            )
-                        )
-                    )
-                    + pattern_decision.camera_boost,
-                    1.0,
-                ),
-            )
-        )
-
-        image = self._apply_color_script(
-            image=image,
-            story_beat=story_beat,
-        )
-
         return image
 
     def _apply_color_script(
