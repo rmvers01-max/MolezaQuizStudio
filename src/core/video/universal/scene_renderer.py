@@ -21,6 +21,7 @@ from ..scene_graph import (
     SceneGraphValidator,
     SceneRenderContext,
     ScopedMaterialRenderer,
+    SceneLayoutIntelligence,
 )
 
 from ..attention import (
@@ -79,7 +80,9 @@ class UniversalSceneRenderer:
         self.scene_graph_diagnostics = SceneGraphDiagnostics()
         self.scene_graph_focus = SceneGraphFocusResolver()
         self.scoped_materials = ScopedMaterialRenderer()
+        self.layout_intelligence = SceneLayoutIntelligence()
         self.last_scene_graph_report = None
+        self.last_layout_intelligence_report = None
 
         self.eye_focus = EyeFocusDirector()
         self.cinematic_scene = (
@@ -481,6 +484,26 @@ class UniversalSceneRenderer:
             scene_kind=scene_kind,
         )
 
+        self.last_layout_intelligence_report = (
+            self.layout_intelligence.optimize(
+                graph=graph,
+                question_text_length=len(
+                    str(
+                        question.get(
+                            "pergunta",
+                            ""
+                        )
+                    )
+                ),
+                alternative_lengths=[
+                    len(str(value))
+                    for value in alternatives
+                ],
+                has_image=has_image,
+                scene_kind=scene_kind,
+            )
+        )
+
         graph_focus = self.scene_graph_focus.resolve(
             graph,
             scene_kind,
@@ -583,7 +606,19 @@ class UniversalSceneRenderer:
             "material_binding": True,
             "graph_version": "3.0",
         })
-        self.last_scene_graph_report = self.scene_graph_diagnostics.graph_to_dict(graph, graph_issues)
+        self.last_scene_graph_report = self.scene_graph_diagnostics.graph_to_dict(
+            graph,
+            graph_issues,
+        )
+        self.last_scene_graph_report[
+            "layout_intelligence"
+        ] = (
+            self.last_layout_intelligence_report
+            .to_dict()
+            if self.last_layout_intelligence_report
+            is not None
+            else None
+        )
 
         graph_context = SceneRenderContext(
             width=self.width,

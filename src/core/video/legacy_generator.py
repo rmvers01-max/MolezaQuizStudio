@@ -125,6 +125,42 @@ class LegacyVideoGenerator:
             None,
         )
 
+    def _salvar_relatorio_layout(
+        self,
+        pasta_projeto,
+    ):
+        report = getattr(
+            self.universal_scene_renderer,
+            "last_layout_intelligence_report",
+            None,
+        )
+
+        if report is None:
+            return
+
+        import json
+
+        path = (
+            Path(pasta_projeto)
+            / "videos"
+            / "relatorios"
+            / "layout_intelligence_report.json"
+        )
+
+        path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        path.write_text(
+            json.dumps(
+                report.to_dict(),
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
     def configurar_historia_cinematica(
         self,
         plan,
@@ -1099,6 +1135,10 @@ class LegacyVideoGenerator:
             duracao_pergunta
             + tempo_resposta_pergunta
             + duracao_resposta
+        )
+
+        self._salvar_relatorio_layout(
+            pasta_projeto
         )
 
         return {

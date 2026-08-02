@@ -1,3 +1,8 @@
+from .layout_intelligence import (
+    LayoutAdjustment,
+    LayoutIntelligenceReport,
+    SceneLayoutIntelligence,
+)
 from .effects import EffectBinding
 from .materials import SceneMaskFactory, ScopedMaterialRenderer
 from .focus import GraphFocusTarget, SceneGraphFocusResolver
@@ -10,6 +15,9 @@ from .resolver import SafeAreaResolver
 from .validation import SceneGraphValidator, SceneIssue
 
 __all__ = [
+    "LayoutAdjustment",
+    "LayoutIntelligenceReport",
+    "SceneLayoutIntelligence",
     "EffectBinding",
     "SceneMaskFactory",
     "ScopedMaterialRenderer",

@@ -69,5 +69,13 @@ class Rect:
         y = min(max(self.y, container.y), container.bottom - height)
         return Rect(x, y, width, height)
 
+    def to_dict(self) -> dict[str, int]:
+        return {
+            "x": self.x,
+            "y": self.y,
+            "width": self.width,
+            "height": self.height,
+        }
+
     def as_tuple(self) -> tuple[int, int, int, int]:
         return (self.x, self.y, self.right, self.bottom)
