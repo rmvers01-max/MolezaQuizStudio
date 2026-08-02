@@ -118,6 +118,13 @@ class LegacyVideoGenerator:
             quality_profile="balanced",
         )
 
+    def obter_relatorio_scene_graph(self):
+        return getattr(
+            self.universal_scene_renderer,
+            "last_scene_graph_report",
+            None,
+        )
+
     def configurar_historia_cinematica(
         self,
         plan,

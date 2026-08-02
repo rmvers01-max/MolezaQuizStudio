@@ -13,6 +13,14 @@ from PIL import (
 )
 from moviepy import ImageSequenceClip
 
+from ..scene_graph import (
+    KnowledgeSceneGraphFactory,
+    SafeAreaResolver,
+    SceneGraphDiagnostics,
+    SceneGraphValidator,
+    SceneRenderContext,
+)
+
 from ..attention import (
     CinematicSceneDirector,
     EyeFocusDirector,
@@ -59,6 +67,15 @@ class UniversalSceneRenderer:
                 height=self.height,
             )
         )
+
+        self.scene_graph_factory = KnowledgeSceneGraphFactory(
+            self.width,
+            self.height,
+        )
+        self.scene_graph_validator = SceneGraphValidator()
+        self.scene_graph_resolver = SafeAreaResolver()
+        self.scene_graph_diagnostics = SceneGraphDiagnostics()
+        self.last_scene_graph_report = None
 
         self.eye_focus = EyeFocusDirector()
         self.cinematic_scene = (
@@ -278,13 +295,7 @@ class UniversalSceneRenderer:
             )
         )
 
-        image = self._background(
-            theme_pack=theme_pack,
-            time=time,
-            scene_kind=scene_kind,
-        )
-
-        context = ComponentContext(
+        component_context = ComponentContext(
             width=self.width,
             height=self.height,
             theme_pack=theme_pack,
@@ -295,39 +306,6 @@ class UniversalSceneRenderer:
             time=time,
         )
 
-        QuestionComponent(
-            question.get(
-                "pergunta",
-                ""
-            )
-        ).render(
-            image,
-            layout.question,
-            context,
-        )
-
-        ProgressComponent(
-            current=question_number,
-            total=total_questions,
-        ).render(
-            image,
-            layout.progress,
-            context,
-        )
-
-        if (
-            has_image
-            and layout.main_image
-            is not None
-        ):
-            MainImageComponent(
-                image_path
-            ).render(
-                image,
-                layout.main_image,
-                context,
-            )
-
         correct_answer = str(
             question.get(
                 "resposta",
@@ -335,15 +313,42 @@ class UniversalSceneRenderer:
             )
         ).strip()
 
-        for index, alternative in enumerate(
-            alternatives,
-            start=1,
-        ):
-            if index > len(
-                layout.choices
-            ):
-                break
+        def component_renderer(component):
+            def render(canvas, bounds, graph_context):
+                from .components import ComponentBox
+                component.render(
+                    canvas,
+                    ComponentBox(
+                        bounds.x,
+                        bounds.y,
+                        bounds.width,
+                        bounds.height,
+                    ),
+                    component_context,
+                )
+                return canvas
+            return render
 
+        renderers = {
+            "background": lambda canvas, bounds, ctx: self._background(
+                theme_pack=theme_pack,
+                time=time,
+                scene_kind=scene_kind,
+            ),
+            "question": component_renderer(
+                QuestionComponent(question.get("pergunta", ""))
+            ),
+            "progress": component_renderer(
+                ProgressComponent(question_number, total_questions)
+            ),
+        }
+
+        if has_image and layout.main_image is not None:
+            renderers["main_image"] = component_renderer(
+                MainImageComponent(image_path)
+            )
+
+        for index, alternative in enumerate(alternatives, start=1):
             highlighted = (
                 scene_kind == "reveal"
                 and self._matches_answer(
@@ -352,48 +357,76 @@ class UniversalSceneRenderer:
                     correct_answer,
                 )
             )
-
-            ChoiceComponent(
-                text=alternative,
-                index=index,
-                highlighted=highlighted,
-            ).render(
-                image,
-                layout.choices[
-                    index - 1
-                ],
-                context,
+            renderers[f"choice_{index}"] = component_renderer(
+                ChoiceComponent(alternative, index, highlighted)
             )
 
-        if (
-            scene_kind == "countdown"
-            and countdown_value
-            is not None
-        ):
-            TimerComponent(
-                value=countdown_value,
-                maximum=max(
-                    int(
-                        countdown_maximum
-                        or countdown_value
-                    ),
-                    1,
-                ),
-            ).render(
-                image,
-                layout.timer,
-                context,
+        if scene_kind == "countdown" and countdown_value is not None:
+            renderers["timer"] = component_renderer(
+                TimerComponent(
+                    countdown_value,
+                    max(int(countdown_maximum or countdown_value), 1),
+                )
             )
 
         if scene_kind == "reveal":
-            AnswerComponent(
-                correct_answer
-            ).render(
-                image,
-                layout.answer,
-                context,
+            renderers["answer"] = component_renderer(
+                AnswerComponent(correct_answer)
             )
 
+        graph = self.scene_graph_factory.build(
+            layout=layout,
+            renderers=renderers,
+            alternative_count=len(alternatives),
+            has_image=has_image,
+            scene_kind=scene_kind,
+        )
+        graph = self.scene_graph_resolver.resolve(graph)
+        graph_issues = self.scene_graph_validator.validate(graph)
+        self.last_scene_graph_report = (
+            self.scene_graph_diagnostics.graph_to_dict(
+                graph,
+                graph_issues,
+            )
+        )
+
+        graph_context = SceneRenderContext(
+            width=self.width,
+            height=self.height,
+            time=time,
+            progress=progress,
+            scene_kind=scene_kind,
+            question_number=question_number,
+            total_questions=total_questions,
+            theme_pack=theme_pack,
+            metadata={
+                "question_direction": question_direction,
+                "story_beat": story_beat,
+            },
+        )
+
+        # Render only structural nodes first. Effects remain in the existing
+        # post-processing pipeline during this migration Sprint.
+        for node_id in (
+            "pattern_accent",
+            "focus_effect",
+            "mascot",
+            "camera_and_color",
+        ):
+            node = graph.find(node_id)
+            if node is not None:
+                node.visible = False
+
+        image = graph.render(
+            Image.new(
+                "RGBA",
+                (self.width, self.height),
+                (0, 0, 0, 0),
+            ),
+            graph_context,
+        )
+
+        if scene_kind == "reveal":
             self._reveal_effect(
                 image=image,
                 progress=progress,

@@ -455,6 +455,33 @@ class VideoGenerator:
             callback_progresso=callback_progresso,
         )
 
+        if tipo_quiz != "preferencia":
+            scene_graph_report = (
+                self.renderer
+                .obter_relatorio_scene_graph()
+            )
+
+            if scene_graph_report is not None:
+                report_path = (
+                    Path(pasta_projeto)
+                    / "videos"
+                    / "relatorios"
+                    / "scene_graph_report.json"
+                )
+                report_path.parent.mkdir(
+                    parents=True,
+                    exist_ok=True,
+                )
+                report_path.write_text(
+                    json.dumps(
+                        scene_graph_report,
+                        ensure_ascii=False,
+                        indent=2,
+                        default=str,
+                    ),
+                    encoding="utf-8",
+                )
+
         if tipo_quiz == "preferencia":
             self._salvar_relatorio_render(
                 pasta_projeto=pasta_projeto,
