@@ -101,6 +101,7 @@ class UniversalSceneRenderer:
 
         self.question_direction_plan = None
         self.story_arc_plan = None
+        self.ipe_execution_plan = None
 
         self.execution_settings = {
             "pattern_breaks_enabled": True,
@@ -109,6 +110,28 @@ class UniversalSceneRenderer:
             "mascot_enabled": True,
             "mascot_intensity": 0.80,
         }
+
+    def configure_ipe_execution(
+        self,
+        plan,
+    ):
+        self.ipe_execution_plan = plan
+        adjustments = getattr(plan, "global_adjustments", {})
+        interval_delta = int(adjustments.get("pattern_break_interval_delta", 0))
+        current_interval = int(self.execution_settings.get("pattern_break_interval", 4))
+        self.execution_settings["pattern_break_interval"] = max(current_interval + interval_delta, 2)
+        self.execution_settings["pattern_break_intensity"] = min(
+            float(self.execution_settings.get("pattern_break_intensity", .82))
+            + float(adjustments.get("pattern_break_intensity_delta", 0.0)),
+            1.0,
+        )
+
+    def _ipe_directive(self, number):
+        if self.ipe_execution_plan is None:
+            return None
+        if hasattr(self.ipe_execution_plan, "question"):
+            return self.ipe_execution_plan.question(number)
+        return None
 
     def configure_story_arc(
         self,
@@ -256,6 +279,7 @@ class UniversalSceneRenderer:
         story_beat = self._story_beat(
             question_number
         )
+        ipe_directive = self._ipe_directive(question_number)
 
         alternatives = list(
             question.get(
@@ -304,6 +328,20 @@ class UniversalSceneRenderer:
                 ),
             )
         )
+
+        if (
+            ipe_directive is not None
+            and ipe_directive.force_pattern_break
+            and scene_kind == "question"
+        ):
+            from dataclasses import replace
+            pattern_decision = replace(
+                pattern_decision,
+                active=True,
+                intensity=max(pattern_decision.intensity, .84),
+                camera_boost=max(pattern_decision.camera_boost, ipe_directive.motion_boost),
+                mascot_boost=max(pattern_decision.mascot_boost, ipe_directive.mascot_boost),
+            )
 
         component_context = ComponentContext(
             width=self.width,

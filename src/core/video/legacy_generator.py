@@ -96,6 +96,7 @@ class LegacyVideoGenerator:
 
         self.question_direction_plan = None
         self.story_arc_plan = None
+        self.ipe_execution_plan = None
 
         self.execution_settings = ExecutionSettings(
             theme_pack=dict(
@@ -196,6 +197,21 @@ class LegacyVideoGenerator:
             ),
             encoding="utf-8",
         )
+
+    def configurar_execucao_ipe(
+        self,
+        plan,
+    ):
+        self.ipe_execution_plan = plan
+        if hasattr(self.universal_scene_renderer, "configure_ipe_execution"):
+            self.universal_scene_renderer.configure_ipe_execution(plan)
+
+    def _diretiva_ipe(self, numero):
+        if self.ipe_execution_plan is None:
+            return None
+        if hasattr(self.ipe_execution_plan, "question"):
+            return self.ipe_execution_plan.question(numero)
+        return None
 
     def configurar_historia_cinematica(
         self,
@@ -877,6 +893,7 @@ class LegacyVideoGenerator:
         story_beat = self._story_beat(
             numero
         )
+        ipe_directive = self._diretiva_ipe(numero)
 
         # O plano define o ritmo mínimo, mas nunca corta a narração.
         duracao_pergunta = max(
@@ -892,6 +909,8 @@ class LegacyVideoGenerator:
             ),
             0.65
         )
+        if ipe_directive is not None:
+            duracao_pergunta += float(ipe_directive.entry_duration_delta)
 
         if (
             usar_narracao
@@ -956,6 +975,11 @@ class LegacyVideoGenerator:
             ),
             1
         )
+        if ipe_directive is not None:
+            tempo_resposta_pergunta = max(
+                int(round(tempo_resposta_pergunta + ipe_directive.thinking_duration_delta)),
+                1,
+            )
 
         for contador in range(
             tempo_resposta_pergunta,
@@ -1144,6 +1168,9 @@ class LegacyVideoGenerator:
                     theme_pack=self._theme_pack(),
                 )
             )
+
+        if ipe_directive is not None:
+            duracao_resposta += float(ipe_directive.reveal_duration_delta)
 
         if self.execution_settings.audio_sync_enabled:
             audio_cues = (

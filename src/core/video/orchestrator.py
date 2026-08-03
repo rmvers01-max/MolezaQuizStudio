@@ -7,7 +7,10 @@ from .legacy_generator import LegacyVideoGenerator
 from .execution import ProductionPlanExecutor
 from .quiz_director import IntelligentQuizDirector
 from .story_engine import CinematicStoryDirector
-from .production_engine import IntelligentProductionEngine
+from .production_engine import (
+    IPEExecutionLayer,
+    IntelligentProductionEngine,
+)
 from .intelligence import (
     ABTestPlanner,
     MolezaIntelligenceManager,
@@ -83,6 +86,7 @@ class VideoGenerator:
         self.intelligent_production_engine = (
             IntelligentProductionEngine()
         )
+        self.ipe_execution_layer = IPEExecutionLayer()
 
     @property
     def largura(self):
@@ -307,6 +311,16 @@ class VideoGenerator:
             "intelligent_production_plan"
         ] = intelligent_production_plan.to_dict()
 
+        ipe_execution_plan = (
+            self.ipe_execution_layer.build(
+                intelligent_production_plan.to_dict()
+            )
+        )
+        self.ipe_execution_layer.save(
+            ipe_execution_plan,
+            Path(pasta_projeto) / "videos" / "relatorios" / "ipe_execution_report.json",
+        )
+
         self.intelligence_manager = (
             MolezaIntelligenceManager(
                 Path(pasta_projeto)
@@ -430,6 +444,9 @@ class VideoGenerator:
 
         self.renderer.configurar_historia_cinematica(
             story_arc_plan
+        )
+        self.renderer.configurar_execucao_ipe(
+            ipe_execution_plan
         )
 
         if hasattr(
