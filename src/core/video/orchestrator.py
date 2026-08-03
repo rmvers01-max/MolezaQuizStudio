@@ -7,6 +7,7 @@ from .legacy_generator import LegacyVideoGenerator
 from .execution import ProductionPlanExecutor
 from .quiz_director import IntelligentQuizDirector
 from .story_engine import CinematicStoryDirector
+from .production_engine import IntelligentProductionEngine
 from .intelligence import (
     ABTestPlanner,
     MolezaIntelligenceManager,
@@ -77,6 +78,10 @@ class VideoGenerator:
         self.ab_test_planner = ABTestPlanner()
         self.recommendation_override_builder = (
             RecommendationOverrideBuilder()
+        )
+
+        self.intelligent_production_engine = (
+            IntelligentProductionEngine()
         )
 
     @property
@@ -276,6 +281,31 @@ class VideoGenerator:
                 / "cinematic_story_plan.json"
             )
         )
+
+        intelligent_production_plan = (
+            self.intelligent_production_engine.create_plan(
+                title=titulo_quiz,
+                quiz_type=tipo_quiz,
+                questions=perguntas_preparadas,
+                production_plan=production_plan.to_dict(),
+                question_plan=quiz_direction_plan.to_dict(),
+                story_plan=story_arc_plan.to_dict(),
+            )
+        )
+
+        self.intelligent_production_engine.save(
+            intelligent_production_plan,
+            (
+                Path(pasta_projeto)
+                / "videos"
+                / "relatorios"
+                / "intelligent_production_plan.json"
+            )
+        )
+
+        universal_creative_plan[
+            "intelligent_production_plan"
+        ] = intelligent_production_plan.to_dict()
 
         self.intelligence_manager = (
             MolezaIntelligenceManager(
