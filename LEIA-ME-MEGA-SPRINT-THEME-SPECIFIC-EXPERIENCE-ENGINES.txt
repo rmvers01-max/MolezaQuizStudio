@@ -1,0 +1,79 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — THEME-SPECIFIC EXPERIENCE ENGINES 1.0
+
+Objetivo:
+fazer cada tema possuir uma atmosfera própria, e não apenas cores
+diferentes.
+
+Motores iniciais:
+
+Preferência — Choice World
+- tela dividida visualmente;
+- formas dos dois lados;
+- OU central;
+- transição split flash.
+
+Bandeiras — Geography World
+- linhas de mapa;
+- bússola animada;
+- elementos de navegação;
+- flag wipe.
+
+Animais — Animal Nature
+- folhas;
+- pegadas;
+- profundidade natural;
+- leaf wipe.
+
+Comidas — Food Fun
+- pratos;
+- círculos coloridos;
+- composição de cozinha divertida;
+- color pop.
+
+Esportes — Sports Arena
+- linhas de campo;
+- placar;
+- traços de velocidade;
+- speed wipe.
+
+Personagens — Character Mystery
+- estrelas;
+- pontos de interrogação;
+- silhuetas;
+- mystery flash.
+
+Conhecimentos gerais — Knowledge Lab
+- formas geométricas;
+- símbolos;
+- perguntas e ideias;
+- light wipe.
+
+Mudança visual:
+os elementos temáticos são desenhados diretamente nos frames,
+atrás do conteúdo principal.
+
+Scene Graph:
+versão 4.5
+
+Relatórios:
+videos/relatorios/theme_experience_report.json
+videos/relatorios/scene_graph_report.json
+
+Novos arquivos:
+src/core/video/theme_experience/__init__.py
+src/core/video/theme_experience/models.py
+src/core/video/theme_experience/director.py
+src/core/video/theme_experience/compositor.py
+src/core/video/theme_experience/report.py
+tests/test_theme_specific_experience_engines.py
+
+Atualizados:
+src/core/video/universal/scene_renderer.py
+src/core/video/templates/preference_renderer.py
+src/core/video/legacy_generator.py
+
+Testes:
+python -m compileall src
+python -m pytest tests\test_theme_specific_experience_engines.py -q
+python src\main.py

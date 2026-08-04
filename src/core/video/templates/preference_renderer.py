@@ -17,6 +17,10 @@ from ..animations import (
     TransitionFactory,
 )
 from ..choice_experience import AAAChoiceVisualDirector
+from ..theme_experience import (
+    ThemeSpecificCompositor,
+    ThemeSpecificExperienceDirector,
+)
 from ..curiosity import (
     CuriosityDistributionDirector,
     CuriosityExperienceDirector,
@@ -90,6 +94,9 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         )
         self.last_choice_visual_profile = None
         self.last_curiosity_decision = None
+        self.theme_experience_director = ThemeSpecificExperienceDirector()
+        self.theme_specific_compositor = ThemeSpecificCompositor()
+        self.last_theme_experience = None
         self.curiosity_studio = CuriosityExperienceStudio(
             width=self.largura, height=self.altura, fps=18
         )
@@ -1548,6 +1555,40 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             )
         )
 
+        numero_atual = int(
+            getattr(
+                self,
+                "_numero_pergunta_atual",
+                1,
+            )
+        )
+
+        self.last_theme_experience = (
+            self.theme_experience_director.choose(
+                category="preference",
+                question_number=numero_atual,
+                scene_kind="question",
+            )
+        )
+
+        imagem = self.theme_specific_compositor.apply(
+            image=imagem,
+            profile=self.last_theme_experience,
+            time=float(
+                numero_atual
+            ) * 0.18,
+            content_box=(
+                62,
+                56,
+                1218,
+                664,
+            ),
+        )
+
+        desenho = ImageDraw.Draw(
+            imagem
+        )
+
         return imagem, desenho
 
     def _desenhar_cabecalho(
@@ -1979,6 +2020,10 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         numero,
         pergunta
     ):
+        self._numero_pergunta_atual = int(
+            numero
+        )
+
         self.definir_layout_por_pergunta(
             numero
         )
@@ -2024,6 +2069,10 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         pergunta,
         contador
     ):
+        self._numero_pergunta_atual = int(
+            numero
+        )
+
         self.definir_layout_por_pergunta(
             numero
         )
@@ -2101,6 +2150,10 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         numero,
         pergunta
     ):
+        self._numero_pergunta_atual = int(
+            numero
+        )
+
         self.definir_layout_por_pergunta(
             numero
         )

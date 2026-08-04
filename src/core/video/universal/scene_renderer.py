@@ -14,6 +14,10 @@ from PIL import (
 from moviepy import ImageSequenceClip
 
 from ..identity_engine import AAAIdentityEngine
+from ..theme_experience import (
+    ThemeSpecificCompositor,
+    ThemeSpecificExperienceDirector,
+)
 
 from ..cinematic_experience import (
     CinematicExperienceCompositor,
@@ -124,6 +128,9 @@ class UniversalSceneRenderer:
         self.last_identity_evaluation = None
         self.knowledge_profile = {}
         self.knowledge_reveal_plan = {}
+        self.theme_experience_director = ThemeSpecificExperienceDirector()
+        self.theme_specific_compositor = ThemeSpecificCompositor()
+        self.last_theme_experience = None
 
         self.pattern_break = (
             PatternBreakDirector()
@@ -877,7 +884,12 @@ class UniversalSceneRenderer:
                 "profile": dict(self.knowledge_profile),
                 "reveal_plan": dict(self.knowledge_reveal_plan),
             },
-            "graph_version": "4.4",
+            "theme_experience": (
+                self.last_theme_experience.to_dict()
+                if self.last_theme_experience is not None
+                else None
+            ),
+            "graph_version": "4.5",
         })
         self.last_scene_graph_report = self.scene_graph_diagnostics.graph_to_dict(
             graph,
@@ -1280,6 +1292,43 @@ class UniversalSceneRenderer:
                 "sparkles",
             ),
             intensity=activity,
+        )
+
+        category = str(
+            self.knowledge_profile.get(
+                "category",
+                "general_knowledge",
+            )
+        )
+
+        self.last_theme_experience = (
+            self.theme_experience_director.choose(
+                category=category,
+                question_number=int(
+                    self.knowledge_profile
+                    .get(
+                        "metadata",
+                        {},
+                    )
+                    .get(
+                        "question_number",
+                        1,
+                    )
+                ),
+                scene_kind=scene_kind,
+            )
+        )
+
+        image = self.theme_specific_compositor.apply(
+            image=image,
+            profile=self.last_theme_experience,
+            time=time,
+            content_box=(
+                54,
+                50,
+                self.width - 54,
+                self.height - 50,
+            ),
         )
 
         return image

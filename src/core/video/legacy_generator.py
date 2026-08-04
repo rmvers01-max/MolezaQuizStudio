@@ -19,6 +19,7 @@ from .attention import (
     ViewerAttentionAnalyzer,
 )
 from .mascot_actor import MascotActorReportWriter
+from .theme_experience import ThemeExperienceReportWriter
 from .knowledge_experience import (
     AAAKnowledgeVisualDirector,
     KnowledgeRendererReportWriter,
@@ -119,6 +120,7 @@ class LegacyVideoGenerator:
         self.knowledge_report_writer = KnowledgeRendererReportWriter()
         self.last_knowledge_visual_profile = None
         self.last_knowledge_reveal_plan = None
+        self.theme_experience_report_writer = ThemeExperienceReportWriter()
 
         self.outro_studio = OutroStudio(
             width=self.largura,
@@ -1526,6 +1528,23 @@ class LegacyVideoGenerator:
         self._salvar_relatorio_layout(
             pasta_projeto
         )
+
+        theme_profile = getattr(
+            self.universal_scene_renderer,
+            "last_theme_experience",
+            None,
+        )
+
+        if theme_profile is not None:
+            self.theme_experience_report_writer.save(
+                theme_profile,
+                (
+                    Path(pasta_projeto)
+                    / "videos"
+                    / "relatorios"
+                    / "theme_experience_report.json"
+                ),
+            )
 
         self._salvar_relatorio_qualidade(
             pasta_projeto
