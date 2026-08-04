@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import math
 import textwrap
 
@@ -15,7 +16,9 @@ from ..animations import (
     SceneClipFactory,
     TransitionFactory,
 )
+from ..choice_experience import AAAChoiceVisualDirector
 from ..curiosity import (
+    CuriosityDistributionDirector,
     CuriosityExperienceDirector,
     CuriosityExperienceStudio,
     CuriosityReportWriter,
@@ -79,6 +82,14 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         )
 
         self.curiosity_director = CuriosityExperienceDirector()
+        self.curiosity_distribution = (
+            CuriosityDistributionDirector()
+        )
+        self.choice_visual_director = (
+            AAAChoiceVisualDirector()
+        )
+        self.last_choice_visual_profile = None
+        self.last_curiosity_decision = None
         self.curiosity_studio = CuriosityExperienceStudio(
             width=self.largura, height=self.altura, fps=18
         )
@@ -413,7 +424,27 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             .parent
         )
 
+        alternatives = list(
+            pergunta.get(
+                "alternativas",
+                [],
+            )
+        )
+
+        has_choice_images = bool(
+            self._obter_caminho_imagem(
+                pergunta,
+                indice=0,
+            )
+            or self._obter_caminho_imagem(
+                pergunta,
+                indice=1,
+            )
+        )
+
         if numero == 1:
+            self.curiosity_distribution.reset()
+
             self.retention_director.salvar_relatorio(
                 self.retention_plan,
                 (
@@ -709,24 +740,141 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             )
         )
 
-        curiosity_plan = self.curiosity_director.create_plan(
-            question=pergunta, quiz_type="preferencia",
-            category="preference", default_duration=3.2,
-        )
-        curiosity_duration = 0.0
-        if curiosity_plan.enabled:
-            curiosity_clip = self.curiosity_studio.create_clip(
-                plan=curiosity_plan, theme_pack=self._theme_pack(),
+        self.last_curiosity_decision = (
+            self.curiosity_distribution.decide(
+                question=pergunta,
                 question_number=numero,
+                total_questions=max(
+                    int(
+                        getattr(
+                            self,
+                            "total_perguntas_contexto",
+                            numero,
+                        )
+                    ),
+                    numero,
+                ),
+                quiz_type="preferencia",
+                has_pattern_break=bool(
+                    retention_scene.get(
+                        "pattern_break",
+                        False,
+                    )
+                ),
+                reading_load=float(
+                    retention_scene.get(
+                        "reading_score",
+                        0.0,
+                    )
+                ),
             )
+        )
+
+        self.last_choice_visual_profile = (
+            self.choice_visual_director.choose(
+                question_number=numero,
+                total_questions=max(
+                    int(
+                        getattr(
+                            self,
+                            "total_perguntas_contexto",
+                            numero,
+                        )
+                    ),
+                    numero,
+                ),
+                has_images=has_choice_images,
+                curiosity_selected=(
+                    self.last_curiosity_decision.enabled
+                ),
+            )
+        )
+
+        self.COR_A = (
+            self.last_choice_visual_profile
+            .color_a
+        )
+        self.COR_B = (
+            self.last_choice_visual_profile
+            .color_b
+        )
+        self.COR_DESTAQUE = (
+            self.last_choice_visual_profile
+            .accent
+        )
+
+        curiosity_plan = (
+            self.curiosity_director.create_plan(
+                question=pergunta,
+                quiz_type="preferencia",
+                category="preference",
+                default_duration=3.2,
+            )
+        )
+
+        curiosity_duration = 0.0
+
+        if (
+            curiosity_plan.enabled
+            and self.last_curiosity_decision.enabled
+        ):
+            curiosity_clip = (
+                self.curiosity_studio.create_clip(
+                    plan=curiosity_plan,
+                    theme_pack=self._theme_pack(),
+                    question_number=numero,
+                )
+            )
+
             if curiosity_clip is not None:
-                clips_video.append(curiosity_clip)
-                curiosity_duration = curiosity_plan.duration
+                clips_video.append(
+                    curiosity_clip
+                )
+                curiosity_duration = (
+                    curiosity_plan.duration
+                )
+
             self.curiosity_report_writer.save(
                 curiosity_plan,
-                pasta_projeto / "videos" / "relatorios" / "curiosity_experience_report.json",
+                (
+                    pasta_projeto
+                    / "videos"
+                    / "relatorios"
+                    / "curiosity_experience_report.json"
+                ),
                 question_number=numero,
             )
+
+        distribution_path = (
+            pasta_projeto
+            / "videos"
+            / "relatorios"
+            / "curiosity_distribution_report.json"
+        )
+
+        distribution_path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        distribution_path.write_text(
+            json.dumps(
+                {
+                    "question_number": numero,
+                    "decision": (
+                        self.last_curiosity_decision
+                        .to_dict()
+                    ),
+                    "choice_visual_profile": (
+                        self.last_choice_visual_profile
+                        .to_dict()
+                    ),
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
         caminho_frame_transicao = (
             pasta_frames

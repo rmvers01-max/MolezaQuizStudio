@@ -1,0 +1,54 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — AAA CHOICE RENDERER 2.0
+
+Objetivos:
+- aproximar "O que você prefere?" do showcase oficial;
+- preservar a lógica sem resposta certa;
+- distribuir curiosidades somente em algumas perguntas.
+
+Correção da curiosidade:
+- normalmente 20% a 30% das perguntas;
+- nunca duas curiosidades consecutivas;
+- evita a pergunta 1;
+- evita curiosidade junto de Pattern Break forte;
+- evita perguntas com carga alta de leitura;
+- prioriza meio e reta final do vídeo.
+
+Controle manual:
+usar_curiosidade = True
+→ sempre mostrar, quando houver conteúdo.
+
+usar_curiosidade = False
+→ nunca mostrar.
+
+Campo ausente
+→ decisão automática.
+
+AAA Choice Visual Director:
+- paletas neon alternadas;
+- cartões A e B com identidade própria;
+- maior energia quando há imagens;
+- "OU" reforçado perto do final;
+- contagem mais intensa na reta final;
+- transição específica quando haverá curiosidade;
+- nenhuma resposta correta ou errada.
+
+Relatórios:
+videos/relatorios/curiosity_distribution_report.json
+videos/relatorios/curiosity_experience_report.json
+
+Novos arquivos:
+src/core/video/curiosity/distribution.py
+src/core/video/choice_experience/__init__.py
+src/core/video/choice_experience/models.py
+src/core/video/choice_experience/director.py
+tests/test_aaa_choice_renderer_2.py
+
+Atualizados:
+src/core/video/curiosity/__init__.py
+src/core/video/templates/preference_renderer.py
+
+Teste:
+python -m compileall src
+python -m pytest tests\test_aaa_choice_renderer_2.py -q
+python src\main.py
