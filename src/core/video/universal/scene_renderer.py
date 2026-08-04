@@ -13,6 +13,16 @@ from PIL import (
 )
 from moviepy import ImageSequenceClip
 
+from ..cinematic_experience import (
+    CinematicExperienceCompositor,
+    CinematicExperienceDirector,
+)
+
+from ..mascot_actor import (
+    MascotActorAnimator,
+    MascotPerformanceDirector,
+)
+
 from ..scene_graph import (
     KnowledgeSceneGraphFactory,
     SafeAreaResolver,
@@ -94,6 +104,19 @@ class UniversalSceneRenderer:
         self.mascot_life = (
             MascotLifeEngine()
         )
+        self.mascot_performance_director = MascotPerformanceDirector()
+        self.mascot_actor_animator = MascotActorAnimator()
+        self.last_mascot_performance = None
+
+        self.cinematic_experience_director = (
+            CinematicExperienceDirector()
+        )
+
+        self.cinematic_experience_compositor = (
+            CinematicExperienceCompositor()
+        )
+
+        self.last_cinematic_experience = None
 
         self.pattern_break = (
             PatternBreakDirector()
@@ -243,6 +266,7 @@ class UniversalSceneRenderer:
                 time=time,
                 countdown_value=countdown_value,
                 countdown_maximum=countdown_maximum,
+                scene_duration=duration,
             )
 
             frames.append(
@@ -269,6 +293,7 @@ class UniversalSceneRenderer:
         time: float,
         countdown_value: int | None = None,
         countdown_maximum: int | None = None,
+        scene_duration: float | None = None,
     ) -> Image.Image:
         question_direction = (
             self._question_direction(
@@ -557,6 +582,55 @@ class UniversalSceneRenderer:
             intensity=graph_focus.intensity,
         )
 
+        difficulty = float(
+            getattr(
+                question_direction,
+                "difficulty_score",
+                getattr(
+                    question_direction,
+                    "difficulty",
+                    50.0,
+                ),
+            )
+            if question_direction is not None
+            else 50.0
+        )
+
+        surprise = bool(
+            getattr(
+                question_direction,
+                "surprise_moment",
+                False,
+            )
+            if question_direction is not None
+            else False
+        )
+
+        emotional_tone = str(
+            getattr(
+                story_beat,
+                "emotional_tone",
+                "",
+            )
+            if story_beat is not None
+            else ""
+        )
+
+        self.last_cinematic_experience = (
+            self.cinematic_experience_director
+            .choose(
+                scene_kind=scene_kind,
+                emotional_tone=emotional_tone,
+                difficulty=difficulty,
+                surprise=surprise,
+                pattern_break=bool(
+                    pattern_decision.active
+                ),
+                question_number=question_number,
+                total_questions=total_questions,
+            )
+        )
+
         def pattern_renderer(canvas, bounds, ctx):
             return self.pattern_break.apply_accent(
                 image=canvas,
@@ -572,44 +646,132 @@ class UniversalSceneRenderer:
                 accent_color=tuple(theme_pack.get("accent_color", (255, 215, 65))),
             )
 
+
         def mascot_renderer(canvas, bounds, ctx):
             if not bool(self.execution_settings.get("mascot_enabled", True)):
                 return canvas
-            base = float(
+
+            base=float(
                 question_direction.mascot_intensity
                 if question_direction is not None
-                else self.execution_settings.get("mascot_intensity", 0.80)
+                else self.execution_settings.get("mascot_intensity", .80)
             )
             if story_beat is not None:
-                base *= story_beat.mascot_multiplier
-            intensity = base * (0.72 if scene_kind == "countdown" else 1.0) + pattern_decision.mascot_boost
-            asset, dx, dy = self.mascot_life.render_asset(
+                base*=story_beat.mascot_multiplier
+
+            boost=float(pattern_decision.mascot_boost)
+            if ipe_directive is not None:
+                boost=max(boost,float(getattr(ipe_directive,"mascot_boost",0.0)))
+
+            duration=max(float(scene_duration or 0.0),1.0)
+            difficulty=float(
+                getattr(question_direction,"difficulty_score",
+                    getattr(question_direction,"difficulty",50.0))
+                if question_direction is not None else 50.0
+            )
+            surprise=bool(
+                getattr(question_direction,"surprise_moment",False)
+                if question_direction is not None else False
+            )
+            tone=str(getattr(story_beat,"emotional_tone","") if story_beat is not None else "")
+            focus_side="left" if focus_target.x<self.width/2 else "right"
+            production_mode=str(
+                getattr(self,"universal_visual_context",{}).get(
+                    "intelligent_production_plan",{}
+                ).get("production_mode","")
+            )
+
+            performance=self.mascot_performance_director.create_performance(
                 scene_kind=scene_kind,
-                progress=progress,
-                intensity=intensity,
-                size=(bounds.width, bounds.height),
+                question_number=question_number,
+                duration=duration,
+                difficulty=difficulty,
+                surprise=surprise,
+                correct_reveal=(scene_kind=="reveal"),
+                focus_side=focus_side,
+                production_mode=production_mode,
+                emotional_tone=tone,
+                mascot_boost=min(max(boost+max(base-.80,0.0)*.35,0.0),.25),
+            )
+            self.last_mascot_performance=performance
+
+            asset,x,y=self.mascot_actor_animator.render(
+                performance=performance,
+                time=time,
+                canvas_size=(self.width,self.height),
+                base_size=(bounds.width,bounds.height),
+                anchor=(bounds.x,bounds.y),
             )
             if asset is not None:
-                canvas.alpha_composite(asset, (bounds.x + dx, bounds.y + dy))
+                canvas.alpha_composite(asset,(x,y))
             return canvas
-
         def post_process_renderer(canvas, bounds, ctx):
+            experience = (
+                self.last_cinematic_experience
+            )
+
+            canvas = (
+                self.cinematic_experience_compositor
+                .apply_pre_camera(
+                    image=canvas,
+                    experience=experience,
+                    time=time,
+                    progress=progress,
+                    focus=focus_target,
+                    accent_color=tuple(
+                        theme_pack.get(
+                            "accent_color",
+                            (255, 215, 65),
+                        )
+                    ),
+                )
+            )
+
             motion = float(
                 question_direction.camera_intensity
                 if question_direction is not None
-                else theme_pack.get("motion_intensity", 0.50)
+                else theme_pack.get(
+                    "motion_intensity",
+                    0.50,
+                )
             )
+
             if story_beat is not None:
-                motion *= story_beat.camera_multiplier
+                motion *= (
+                    story_beat.camera_multiplier
+                )
+
+            motion *= float(
+                experience.camera_multiplier
+            )
+
             canvas = self.cinematic_scene.apply_camera(
                 canvas,
                 target=focus_target,
                 time=time,
                 progress=progress,
                 scene_kind=scene_kind,
-                motion_intensity=min(motion + pattern_decision.camera_boost, 1.0),
+                motion_intensity=min(
+                    motion
+                    + pattern_decision.camera_boost,
+                    1.0,
+                ),
             )
-            return self._apply_color_script(image=canvas, story_beat=story_beat)
+
+            canvas = self._apply_color_script(
+                image=canvas,
+                story_beat=story_beat,
+            )
+
+            return (
+                self.cinematic_experience_compositor
+                .apply_post_camera(
+                    image=canvas,
+                    experience=experience,
+                    time=time,
+                    progress=progress,
+                )
+            )
 
         effect_renderers = {
             "pattern_accent": pattern_renderer,
@@ -674,7 +836,17 @@ class UniversalSceneRenderer:
                 "color_script",
             ],
             "material_binding": True,
-            "graph_version": "4.0",
+            "mascot_actor": (
+                self.last_mascot_performance.to_dict()
+                if self.last_mascot_performance is not None
+                else None
+            ),
+            "cinematic_experience": (
+                self.last_cinematic_experience.to_dict()
+                if self.last_cinematic_experience is not None
+                else None
+            ),
+            "graph_version": "4.2",
         })
         self.last_scene_graph_report = self.scene_graph_diagnostics.graph_to_dict(
             graph,

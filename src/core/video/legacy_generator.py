@@ -13,6 +13,7 @@ from .attention import (
     PatternBreakDirector,
     ViewerAttentionAnalyzer,
 )
+from .mascot_actor import MascotActorReportWriter
 from .opening import (
     OpeningDirector,
     OpeningReportWriter,
@@ -81,6 +82,7 @@ class LegacyVideoGenerator:
         self.opening_report_writer = (
             OpeningReportWriter()
         )
+        self.mascot_actor_report_writer = MascotActorReportWriter()
 
         self.opening_studio = OpeningStudio(
             largura=self.largura,
@@ -132,6 +134,22 @@ class LegacyVideoGenerator:
             self.universal_scene_renderer,
             "last_scene_graph_report",
             None,
+        )
+
+    def _salvar_relatorio_mascote(self, pasta_projeto):
+        performance = getattr(
+            self.universal_scene_renderer,
+            "last_mascot_performance",
+            None,
+        )
+        if performance is None:
+            return
+        self.mascot_actor_report_writer.save(
+            performance,
+            Path(pasta_projeto)
+            / "videos"
+            / "relatorios"
+            / "mascot_actor_report.json",
         )
 
     def _salvar_relatorio_qualidade(
@@ -1250,6 +1268,9 @@ class LegacyVideoGenerator:
         )
 
         self._salvar_relatorio_qualidade(
+            pasta_projeto
+        )
+        self._salvar_relatorio_mascote(
             pasta_projeto
         )
 
