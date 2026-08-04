@@ -12,10 +12,8 @@ from PIL import (
 )
 from moviepy import ImageSequenceClip
 
-from ..animations import (
-    CharacterAnimationEngine,
-    SmartEasing,
-)
+from ..animations import SmartEasing
+from ..mascot_actor import MascotActorAnimator, MascotPerformanceDirector
 
 
 class OpeningStudio:
@@ -38,9 +36,8 @@ class OpeningStudio:
             int(fps),
             18,
         )
-        self.character_engine = (
-            CharacterAnimationEngine()
-        )
+        self.mascot_performance_director = MascotPerformanceDirector()
+        self.mascot_actor_animator = MascotActorAnimator()
 
     def criar_clip(
         self,
@@ -389,108 +386,19 @@ class OpeningStudio:
 
         return image
 
-    def _mascot_actor(
-        self,
-        *,
-        image,
-        direction,
-        time,
-        progress,
-    ):
-        sequence = list(
-            direction.get(
-                "mascot_sequence",
-                [
-                    "wave",
-                    "thinking",
-                    "point_right",
-                ],
-            )
-        )
 
-        while len(sequence) < 3:
-            sequence.append(
-                sequence[-1]
-                if sequence
-                else "wave"
-            )
-
-        if time < 1.35:
-            pose = sequence[0]
-            local = self._interval(
-                time,
-                0.25,
-                1.25,
-            )
-        elif time < 2.55:
-            pose = sequence[1]
-            local = self._interval(
-                time,
-                1.25,
-                2.45,
-            )
-        else:
-            pose = sequence[2]
-            local = self._interval(
-                time,
-                2.45,
-                max(
-                    float(
-                        direction.get(
-                            "duracao",
-                            4.15,
-                        )
-                    )
-                    - 0.30,
-                    2.8,
-                ),
-            )
-
-        mascot, dx, dy = (
-            self.character_engine.renderizar(
-                pose=pose,
-                progresso=max(
-                    local,
-                    0.01,
-                ),
-                tamanho_base=(210, 210),
-                comportamento=pose,
-                intensidade=1.02,
-            )
-        )
-
-        if mascot is None:
-            return
-
-        enter = SmartEasing.ease_out_back(
-            self._interval(
-                time,
-                0.22,
-                1.0,
-            ),
-            overshoot=1.10,
-        )
-
-        x = int(
-            self.largura
-            - mascot.width
-            - 22
-            + (1.0 - enter) * 190
-            + dx
-        )
-
-        y = int(
-            self.altura
-            - mascot.height
-            - 8
-            + 4 * math.sin(time * 3.0)
-            + dy
-        )
-
-        image.alpha_composite(
-            mascot,
-            (x, y),
-        )
+def _mascot_actor(self, *, image, direction, time, progress):
+    duration=float(direction.get("duracao",4.15))
+    performance=self.mascot_performance_director.create_performance(
+        scene_kind="question", question_number=0, duration=duration,
+        difficulty=45, surprise=True, focus_side="center",
+        production_mode=direction.get("metadata",{}).get("production_mode","")
+    )
+    mascot,x,y=self.mascot_actor_animator.render(
+        performance=performance,time=time,
+        canvas_size=(self.largura,self.altura),base_size=(210,210))
+    if mascot is not None:
+        image.alpha_composite(mascot,(x,y))
 
     def _draw_teasers(
         self,
