@@ -1,0 +1,49 @@
+MOLEZA QUIZ STUDIO
+SPRINT — SCENE GRAPH LAYOUT INTELLIGENCE
+
+O sistema passa a analisar e corrigir a composição antes de renderizar.
+
+Analisa:
+- tamanho da pergunta;
+- comprimento das alternativas;
+- presença e destaque da imagem;
+- área da resposta;
+- colisões entre elementos;
+- prioridades;
+- áreas seguras.
+
+Corrige:
+- perguntas longas;
+- cartões apertados;
+- imagens pequenas;
+- respostas sem espaço;
+- colisões entre elementos de conteúdo;
+- materiais filhos desalinhados após redimensionamento.
+
+Relatórios:
+videos/relatorios/layout_intelligence_report.json
+videos/relatorios/scene_graph_report.json
+
+O relatório contém:
+- score de composição;
+- alterações realizadas;
+- posição antes e depois;
+- motivo;
+- severidade;
+- avisos persistentes.
+
+Novos arquivos:
+src/core/video/scene_graph/layout_intelligence.py
+tests/test_scene_graph_layout_intelligence.py
+
+Atualizados:
+src/core/video/scene_graph/__init__.py
+src/core/video/scene_graph/geometry.py
+src/core/video/scene_graph/diagnostics.py
+src/core/video/universal/scene_renderer.py
+src/core/video/legacy_generator.py
+
+Teste:
+python -m compileall src
+python -m pytest tests\test_scene_graph_layout_intelligence.py -q
+python src\main.py

@@ -19,7 +19,12 @@ from .opening import (
     OpeningReportWriter,
     OpeningStudio,
 )
-from .outro import OutroStudio
+from .outro import (
+    AAAEndingDirector,
+    EndingQualityAnalyzer,
+    EndingReportWriter,
+    OutroStudio,
+)
 from .universal.legacy_motion import (
     UniversalLegacyMotionRenderer,
 )
@@ -89,6 +94,10 @@ class LegacyVideoGenerator:
             altura=self.altura,
             fps=18,
         )
+
+        self.ending_director = AAAEndingDirector()
+        self.ending_quality = EndingQualityAnalyzer()
+        self.ending_report_writer = EndingReportWriter()
 
         self.outro_studio = OutroStudio(
             width=self.largura,
@@ -324,6 +333,10 @@ class LegacyVideoGenerator:
         self.universal_visual_context = dict(
             creative_plan or {}
         )
+        if hasattr(self.universal_scene_renderer, "configure_identity"):
+            self.universal_scene_renderer.configure_identity(
+                self.universal_visual_context.get("identity_plan", {})
+            )
 
     def _theme_pack(self):
         execution_pack = getattr(
@@ -724,21 +737,81 @@ class LegacyVideoGenerator:
                     .outro_duration
                 )
 
-                clips_video.append(
-                    self.outro_studio.create_clip(
-                        text=(
-                            self.story_arc_plan
-                            .finale_message
-                            if self.story_arc_plan
-                            is not None
-                            else texto_encerramento
-                        ),
-                        duration=duracao_encerramento,
-                        theme_pack=self._theme_pack(),
+                production_plan = dict(
+                    self.universal_visual_context.get(
+                        "intelligent_production_plan",
+                        {},
                     )
                 )
 
-                tempo_atual += duracao_encerramento
+                content_profile = dict(
+                    production_plan.get(
+                        "content_profile",
+                        {},
+                    )
+                )
+
+                quiz_type = str(
+                    getattr(
+                        self,
+                        "quiz_type_contexto",
+                        "conhecimento",
+                    )
+                )
+
+                ending_direction = (
+                    self.ending_director.choose(
+                        category=str(
+                            content_profile.get(
+                                "category",
+                                "preference"
+                                if quiz_type == "preferencia"
+                                else "general_knowledge",
+                            )
+                        ),
+                        quiz_type=quiz_type,
+                        duration=duracao_encerramento,
+                        production_mode=str(
+                            production_plan.get(
+                                "production_mode",
+                                "",
+                            )
+                        ),
+                        finale_message=(
+                            self.story_arc_plan.finale_message
+                            if self.story_arc_plan is not None
+                            else texto_encerramento
+                        ),
+                    )
+                )
+
+                ending_quality = (
+                    self.ending_quality.analyze(
+                        ending_direction
+                    )
+                )
+
+                clips_video.append(
+                    self.outro_studio.create_clip(
+                        text=ending_direction.supporting_text,
+                        duration=ending_direction.duration,
+                        theme_pack=self._theme_pack(),
+                        direction=ending_direction,
+                    )
+                )
+
+                self.ending_report_writer.save(
+                    ending_direction,
+                    ending_quality,
+                    (
+                        Path(pasta_projeto)
+                        / "videos"
+                        / "relatorios"
+                        / "ending_report_v2.json"
+                    ),
+                )
+
+                tempo_atual += ending_direction.duration
 
             # ==================================
             # MONTAGEM DO VÍDEO

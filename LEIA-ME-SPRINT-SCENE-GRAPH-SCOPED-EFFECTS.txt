@@ -1,0 +1,90 @@
+MOLEZA QUIZ STUDIO
+SPRINT — SCENE GRAPH SCOPED EFFECTS & MATERIAL BINDING
+
+Objetivo:
+impedir que brilho, glow e materiais ultrapassem os limites dos
+cartões ou sejam aplicados ao elemento errado.
+
+Principais mudanças:
+
+1. Effect Binding
+Cada efeito passa a declarar:
+- nó-alvo;
+- escopo;
+- formato da máscara;
+- raio dos cantos;
+- padding;
+- política de recorte.
+
+2. Máscaras reais
+O SceneNode agora suporta:
+- rectangle;
+- rounded_rectangle;
+- ellipse.
+
+O recorte respeita o formato visual do componente.
+
+3. Card Sheen localizado
+Cada alternativa possui seu próprio nó de brilho:
+choice_1_sheen
+choice_2_sheen
+...
+
+O brilho:
+- fica dentro do cartão;
+- respeita os cantos arredondados;
+- não atravessa cartões vizinhos;
+- não aparece como barra sobre a cena inteira.
+
+4. Answer Glow localizado
+O glow da revelação foi removido da camada global.
+Agora ele é filho do nó answer:
+answer_inner_glow
+
+Isso elimina o risco de glow duplicado ou aplicado fora da resposta.
+
+5. Relação pai/filho
+Nós agora registram parent_id.
+O diagnóstico mostra a qual componente cada efeito pertence.
+
+6. Scene Graph 3.0
+O relatório passa a registrar:
+- parent_id;
+- clip_to_bounds;
+- clip_shape;
+- corner_radius;
+- target_node_id;
+- material_binding.
+
+Relatório:
+videos/relatorios/scene_graph_report.json
+
+Novos arquivos:
+src/core/video/scene_graph/effects.py
+src/core/video/scene_graph/materials.py
+tests/test_scene_graph_scoped_effects.py
+
+Atualizados:
+src/core/video/scene_graph/__init__.py
+src/core/video/scene_graph/nodes.py
+src/core/video/scene_graph/diagnostics.py
+src/core/video/scene_graph/knowledge_factory.py
+src/core/video/universal/scene_renderer.py
+
+Preservado:
+- ProfessionalPreferenceRenderer;
+- narração;
+- música;
+- Theme Packs;
+- AI Creative Director;
+- Intelligent Quiz Director;
+- Cinematic Story Engine;
+- Intelligence Platform.
+
+Instalação:
+Extraia em D:\MolezaQuizStudio e permita substituir.
+
+Testes:
+python -m compileall src
+python -m pytest tests\test_scene_graph_scoped_effects.py -q
+python src\main.py

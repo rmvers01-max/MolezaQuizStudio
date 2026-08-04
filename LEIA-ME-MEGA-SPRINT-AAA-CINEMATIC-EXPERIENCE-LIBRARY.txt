@@ -1,0 +1,81 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — AAA CINEMATIC EXPERIENCE LIBRARY 1.0
+
+Objetivo:
+substituir efeitos isolados por pacotes narrativos completos.
+
+Pacotes iniciais:
+
+Discovery_01
+- câmera de descoberta;
+- luz suave;
+- partículas flutuantes;
+- leve temperatura fria;
+- mascote observando.
+
+Suspense_01
+- aproximação lenta;
+- luz fria focalizada;
+- poeira lenta;
+- vinheta;
+- pulsação;
+- mascote pensando.
+
+Competition_01
+- câmera mais dinâmica;
+- luz dupla;
+- traços de velocidade;
+- energia maior;
+- mascote incentivando.
+
+Victory_01
+- câmera hero;
+- explosão de luz dourada;
+- confetes e brilhos;
+- temperatura quente;
+- mascote comemorando.
+
+Calm_01
+- câmera suave;
+- luz aberta;
+- bokeh discreto;
+- descanso visual.
+
+Seleção automática:
+- pergunta normal -> descoberta;
+- contagem ou dificuldade alta -> suspense;
+- Pattern Break ou desafio -> competição;
+- revelação surpresa ou final -> vitória;
+- alívio -> calm.
+
+Mudança perceptível:
+- iluminação acompanha a emoção;
+- partículas variam conforme a intenção;
+- câmera ganha multiplicadores coerentes;
+- suspense recebe vinheta e tom frio;
+- vitória recebe luz dourada e confetes;
+- o vídeo deixa de usar o mesmo acabamento em todas as cenas.
+
+Scene Graph:
+versão 4.2
+
+Relatório:
+videos/relatorios/scene_graph_report.json
+Campo:
+cinematic_experience
+
+Novos arquivos:
+src/core/video/cinematic_experience/__init__.py
+src/core/video/cinematic_experience/models.py
+src/core/video/cinematic_experience/library.py
+src/core/video/cinematic_experience/director.py
+src/core/video/cinematic_experience/compositor.py
+tests/test_aaa_cinematic_experience_library.py
+
+Atualizado:
+src/core/video/universal/scene_renderer.py
+
+Testes:
+python -m compileall src
+python -m pytest tests\test_aaa_cinematic_experience_library.py -q
+python src\main.py

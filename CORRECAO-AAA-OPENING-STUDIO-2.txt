@@ -1,0 +1,1 @@
+CORREÇÃO: curva ease_in_out_cubic implementada localmente no OpeningStudio.

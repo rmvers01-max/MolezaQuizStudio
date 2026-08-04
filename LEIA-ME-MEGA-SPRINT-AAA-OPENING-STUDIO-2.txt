@@ -1,0 +1,69 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — AAA OPENING STUDIO 2.0
+
+Mudança visual principal:
+A abertura deixa de ser uma tela de introdução e passa a funcionar
+como um trailer curto do desafio.
+
+Recursos:
+- gancho automático por categoria;
+- CTA imediato;
+- teaser visual no primeiro segundo;
+- paleta adaptada ao tema;
+- câmera adaptada ao tipo de quiz;
+- atuação do mascote em três estados;
+- barra de energia;
+- transição cinematográfica;
+- Quality Analyzer exclusivo;
+- relatório opening_report_v2.json.
+
+Categorias iniciais:
+- bandeiras e geografia;
+- O que você prefere;
+- animais;
+- comidas;
+- esportes;
+- personagens;
+- conhecimentos gerais.
+
+Relatório:
+videos/relatorios/opening_report_v2.json
+
+Novos arquivos:
+src/core/video/opening/hook_library.py
+src/core/video/opening/quality_analyzer.py
+src/core/video/opening/report.py
+tests/test_aaa_opening_studio_v2.py
+
+Atualizados:
+src/core/video/opening/__init__.py
+src/core/video/opening/opening_profile.py
+src/core/video/opening/opening_director.py
+src/core/video/opening/opening_studio.py
+src/core/video/legacy_generator.py
+src/core/video/templates/preference_renderer.py
+
+Checklist visual:
+- teaser aparece imediatamente;
+- tema é reconhecível no primeiro segundo;
+- gancho aparece sem demora;
+- CTA explica como participar;
+- mascote muda de comportamento durante a abertura;
+- transição conduz naturalmente à primeira pergunta;
+- nenhuma tela fica parada por muito tempo.
+
+Checklist de regressão:
+- tela Vídeos abre;
+- quizzes de conhecimento continuam funcionando;
+- O que você prefere continua funcionando;
+- abertura pode ser desativada pela interface;
+- narração e música não são cortadas;
+- duração continua obedecendo ao Production Plan.
+
+Instalação:
+Extraia em D:\MolezaQuizStudio e permita substituir.
+
+Testes:
+python -m compileall src
+python -m pytest tests\test_aaa_opening_studio_v2.py -q
+python src\main.py

@@ -1,0 +1,45 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — AAA ENDING STUDIO 2.0
+
+O encerramento agora é adaptado ao formato do quiz.
+
+O que você prefere:
+- não mostra resposta correta;
+- não mostra acertos, erros ou pontuação;
+- celebra a participação;
+- pede comentários sobre as escolhas;
+- convida o público a comparar escolhas com amigos.
+
+Quizzes de conhecimento:
+- celebra a conclusão;
+- convida o espectador a informar sua própria pontuação;
+- não inventa resultados;
+- sugere desafiar um amigo.
+
+Recursos visuais:
+- fundo cinematográfico com luzes móveis;
+- confetes por categoria;
+- mascote comemorando, apontando e se despedindo;
+- slot visual para próximo vídeo;
+- slot para inscrição;
+- CTA inferior destacado;
+- frase final de curiosidade/identidade por tema.
+
+Relatório:
+videos/relatorios/ending_report_v2.json
+
+Novos arquivos:
+src/core/video/outro/models.py
+src/core/video/outro/director.py
+src/core/video/outro/quality.py
+src/core/video/outro/report.py
+src/core/video/outro/outro_studio.py
+tests/test_aaa_ending_studio_v2.py
+
+Atualizado:
+src/core/video/legacy_generator.py
+
+Testes:
+python -m compileall src
+python -m pytest tests\\test_aaa_ending_studio_v2.py -q
+python src\\main.py

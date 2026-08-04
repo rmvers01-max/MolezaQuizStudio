@@ -13,6 +13,8 @@ from PIL import (
 )
 from moviepy import ImageSequenceClip
 
+from ..identity_engine import AAAIdentityEngine
+
 from ..cinematic_experience import (
     CinematicExperienceCompositor,
     CinematicExperienceDirector,
@@ -117,6 +119,9 @@ class UniversalSceneRenderer:
         )
 
         self.last_cinematic_experience = None
+        self.identity_engine = AAAIdentityEngine()
+        self.identity_plan = {}
+        self.last_identity_evaluation = None
 
         self.pattern_break = (
             PatternBreakDirector()
@@ -133,6 +138,9 @@ class UniversalSceneRenderer:
             "mascot_enabled": True,
             "mascot_intensity": 0.80,
         }
+
+    def configure_identity(self, plan):
+        self.identity_plan = plan.to_dict() if hasattr(plan, "to_dict") else dict(plan or {})
 
     def configure_ipe_execution(
         self,
@@ -631,6 +639,12 @@ class UniversalSceneRenderer:
             )
         )
 
+        self.last_cinematic_experience = (
+            self.identity_engine.enforce_experience(
+                self.last_cinematic_experience
+            )
+        )
+
         def pattern_renderer(canvas, bounds, ctx):
             return self.pattern_break.apply_accent(
                 image=canvas,
@@ -824,6 +838,12 @@ class UniversalSceneRenderer:
         graph_issues = self.scene_graph_validator.validate(
             graph
         )
+        self.last_identity_evaluation = self.identity_engine.evaluate_scene(
+            theme_pack=theme_pack,
+            experience=self.last_cinematic_experience,
+            mascot_performance=self.last_mascot_performance,
+        )
+
         graph.metadata.update({
             "focus_node_id": graph_focus.node_id,
             "effects_migrated": [
@@ -846,7 +866,8 @@ class UniversalSceneRenderer:
                 if self.last_cinematic_experience is not None
                 else None
             ),
-            "graph_version": "4.2",
+            "identity_engine": self.last_identity_evaluation,
+            "graph_version": "4.3",
         })
         self.last_scene_graph_report = self.scene_graph_diagnostics.graph_to_dict(
             graph,

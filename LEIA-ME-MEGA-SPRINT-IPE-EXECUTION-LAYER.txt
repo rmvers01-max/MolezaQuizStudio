@@ -1,0 +1,38 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — IPE EXECUTION LAYER
+
+O Intelligent Production Engine passa a executar ajustes controlados.
+
+Aplicações reais:
+- reduz o intervalo global de Pattern Break em vídeos longos;
+- aumenta discretamente a intensidade em desafios visuais;
+- força Pattern Break em pontos de repetição detectados;
+- aumenta câmera e mascote em perguntas específicas;
+- dá mais leitura e pensamento em perguntas pesadas no início;
+- prepara whoosh para riscos de monotonia;
+- preserva narração e limites de segurança.
+
+Novo relatório:
+videos/relatorios/ipe_execution_report.json
+
+Segurança:
+- motion boost máximo: 0.18;
+- mascot boost máximo: 0.18;
+- entrada adicional máxima: 0.25 s;
+- pensamento adicional máximo: 1.0 s;
+- Pattern Break nunca menor que 2 perguntas.
+
+Novos arquivos:
+src/core/video/production_engine/execution.py
+tests/test_ipe_execution_layer.py
+
+Atualizados:
+src/core/video/production_engine/__init__.py
+src/core/video/orchestrator.py
+src/core/video/legacy_generator.py
+src/core/video/universal/scene_renderer.py
+
+Testes:
+python -m compileall src
+python -m pytest tests\test_ipe_execution_layer.py -q
+python src\main.py

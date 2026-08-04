@@ -1,0 +1,39 @@
+MOLEZA QUIZ STUDIO
+SPRINT — SCENE GRAPH EFFECTS INTEGRATION
+
+Esta Sprint migra para nós reais da Scene Graph:
+- Reveal Effect;
+- Pattern Break;
+- Eye Focus;
+- Mascot Life;
+- câmera cinematográfica;
+- Color Script.
+
+O foco deixa de ser calculado apenas por coordenadas fixas. O novo
+SceneGraphFocusResolver escolhe o nó principal conforme as tags e a cena.
+
+O mascote recebe posição própria na Scene Graph, é colocado no lado oposto
+ao foco e depois passa pelo SafeAreaResolver.
+
+O relatório scene_graph_report.json agora registra:
+- focus_node_id;
+- effects_migrated;
+- graph_version 2.0;
+- posição final do mascote;
+- nós de efeitos e seus escopos.
+
+Novos arquivos:
+src/core/video/scene_graph/focus.py
+tests/test_scene_graph_effects.py
+
+Atualizados:
+src/core/video/scene_graph/__init__.py
+src/core/video/scene_graph/nodes.py
+src/core/video/scene_graph/knowledge_factory.py
+src/core/video/attention/mascot_life.py
+src/core/video/universal/scene_renderer.py
+
+Teste:
+python -m compileall src
+python src/main.py
+python -m pytest tests/test_scene_graph.py tests/test_scene_graph_effects.py -q

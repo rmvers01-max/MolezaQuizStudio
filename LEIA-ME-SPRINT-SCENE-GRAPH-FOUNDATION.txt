@@ -1,0 +1,60 @@
+MOLEZA QUIZ STUDIO
+SPRINT — SCENE GRAPH FOUNDATION
+
+Esta Sprint foi construída sobre a versão completa enviada pelo usuário.
+
+O que muda:
+1. Scene Graph real para quizzes de conhecimento.
+2. Cada elemento passa a possuir:
+   - node_id;
+   - bounds;
+   - z_index;
+   - prioridade;
+   - tags;
+   - área segura;
+   - política de sobreposição;
+   - renderer próprio.
+3. Safe Area Resolver reposiciona nós móveis, como o mascote.
+4. Scene Graph Validator detecta:
+   - dimensões inválidas;
+   - elementos fora da tela;
+   - sobreposição visual;
+   - invasão de áreas seguras.
+5. Diagnostics gera:
+   videos/relatorios/scene_graph_report.json
+6. UniversalSceneRenderer agora monta pergunta, imagem, alternativas,
+   progresso, timer e resposta através da Scene Graph.
+7. Efeitos e câmera continuam no pipeline atual nesta Sprint para reduzir
+   risco. Eles já aparecem como nós reservados e serão migrados na próxima.
+
+Não alterado:
+- ProfessionalPreferenceRenderer;
+- áudio e narração;
+- Opening Studio;
+- Outro Studio;
+- Directors existentes;
+- interface pública do VideoGenerator.
+
+Novos arquivos:
+src/core/video/scene_graph/__init__.py
+src/core/video/scene_graph/context.py
+src/core/video/scene_graph/diagnostics.py
+src/core/video/scene_graph/geometry.py
+src/core/video/scene_graph/knowledge_factory.py
+src/core/video/scene_graph/nodes.py
+src/core/video/scene_graph/resolver.py
+src/core/video/scene_graph/validation.py
+tests/test_scene_graph.py
+
+Atualizados:
+src/core/video/universal/scene_renderer.py
+src/core/video/legacy_generator.py
+src/core/video/orchestrator.py
+
+Teste:
+python -m compileall src
+python -m pytest tests/test_scene_graph.py -q
+python src/main.py
+
+Gere um quiz de conhecimento e confira:
+videos/relatorios/scene_graph_report.json

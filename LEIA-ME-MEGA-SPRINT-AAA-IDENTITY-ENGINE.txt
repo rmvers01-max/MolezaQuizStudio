@@ -1,0 +1,32 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — AAA IDENTITY ENGINE 1.0
+
+Cria o DNA oficial do Moleza Quiz e aplica limites de identidade a todos
+os temas e pacotes cinematográficos.
+
+Controla:
+- cores oficiais;
+- contraste;
+- movimento;
+- atividade do fundo;
+- vinheta;
+- partículas;
+- presença do mascote;
+- prioridade da narração.
+
+Mudança visual:
+- suspense não fica escuro demais;
+- vitória não fica poluída;
+- temas continuam variados, mas reconhecíveis como Moleza Quiz;
+- amarelo de destaque e texto oficial permanecem consistentes.
+
+Relatórios:
+videos/relatorios/identity_engine_report.json
+videos/relatorios/scene_graph_report.json
+
+Scene Graph 4.3.
+
+Testes:
+python -m compileall src
+python -m pytest tests\test_aaa_identity_engine.py -q
+python src\main.py

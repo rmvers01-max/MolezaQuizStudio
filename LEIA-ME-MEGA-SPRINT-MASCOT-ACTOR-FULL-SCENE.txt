@@ -1,0 +1,44 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — MASCOT ACTOR FULL SCENE INTEGRATION
+
+A atuação do mascote passa a funcionar também em:
+- apresentação da pergunta;
+- contagem regressiva;
+- revelação da resposta.
+
+Decisões utilizadas:
+- dificuldade da pergunta;
+- lado do foco da Scene Graph;
+- emoção do Cinematic Story Engine;
+- surpresa do Intelligent Quiz Director;
+- boost do IPE e Pattern Break;
+- tipo e duração real da cena.
+
+Pergunta:
+wave -> happy/thinking -> apontamento.
+
+Contagem:
+thinking olhando timer -> incentivo às escolhas.
+
+Revelação:
+suspense -> happy/celebrate olhando a resposta.
+
+Relatórios:
+videos/relatorios/mascot_actor_report.json
+videos/relatorios/scene_graph_report.json
+
+Scene Graph: 4.1
+
+Novos testes:
+tests/test_mascot_actor_full_scene_integration.py
+
+Atualizados:
+src/core/video/mascot_actor/director.py
+src/core/video/mascot_actor/animator.py
+src/core/video/universal/scene_renderer.py
+src/core/video/legacy_generator.py
+
+Testes:
+python -m compileall src
+python -m pytest tests/test_mascot_actor_full_scene_integration.py -q
+python src/main.py

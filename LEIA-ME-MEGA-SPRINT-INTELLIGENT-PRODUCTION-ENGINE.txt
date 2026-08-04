@@ -1,0 +1,29 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — INTELLIGENT PRODUCTION ENGINE
+
+O IPE passa a:
+- entender o conteúdo da planilha;
+- inferir categoria e densidade visual;
+- escolher um modo de produção;
+- construir curva emocional;
+- simular pontos de repetição e sobrecarga;
+- gerar um score editorial de prontidão;
+- registrar estratégias de câmera, mascote, áudio e retenção.
+
+Relatório:
+videos/relatorios/intelligent_production_plan.json
+
+Segurança:
+Nesta fase o IPE recomenda e registra.
+Ele não substitui silenciosamente os Directors existentes.
+
+Novos arquivos:
+src/core/video/production_engine/
+
+Atualizado:
+src/core/video/orchestrator.py
+
+Testes:
+python -m compileall src
+python -m pytest tests\test_intelligent_production_engine.py -q
+python src\main.py

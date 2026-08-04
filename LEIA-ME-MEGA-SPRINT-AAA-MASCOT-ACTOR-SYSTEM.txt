@@ -1,0 +1,9 @@
+MOLEZA QUIZ STUDIO — AAA MASCOT ACTOR SYSTEM
+
+Entrega visual imediata: a abertura passa a usar atuação por beats em vez de troca rígida de poses.
+O mascote entra, cumprimenta, observa, pensa, aponta, respira, flutua e sai suavemente.
+
+Novos arquivos: src/core/video/mascot_actor/*
+Atualizado: src/core/video/opening/opening_studio.py
+Teste: python -m compileall src; python -m pytest tests/test_aaa_mascot_actor_system.py -q; python src/main.py
+Relatório opcional: python scripts/preview_mascot_performance.py --projeto D:\MolezaQuizStudio --cena reveal

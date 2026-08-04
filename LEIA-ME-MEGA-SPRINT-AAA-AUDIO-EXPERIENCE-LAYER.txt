@@ -1,0 +1,40 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — AAA AUDIO EXPERIENCE LAYER 1.0
+
+Objetivo:
+transformar as intenções Discovery, Suspense, Competition, Victory e Calm em eventos sonoros reais.
+
+Recursos:
+- seleção sonora por emoção, dificuldade, surpresa e Pattern Break;
+- ticks de contagem com intensidade crescente;
+- whoosh de competição;
+- impacto de vitória;
+- rise de descoberta;
+- release suave de alívio;
+- prioridade para arquivos SFX fornecidos pelo usuário;
+- fallback procedural em WAV quando não existem assets;
+- cache para não recriar os mesmos sons;
+- relatório de sincronização.
+
+Arquivos gerados automaticamente:
+cache/audio_experience/*.wav
+videos/relatorios/audio_experience_report.json
+
+Assets opcionais com prioridade:
+assets/sfx/question_in.wav
+assets/sfx/tick.wav
+assets/sfx/reveal.wav
+assets/sfx/pattern_break.wav
+assets/sfx/victory_hit.wav
+assets/sfx/calm_release.wav
+
+Novos/atualizados:
+src/core/video/audio_sync/audio_sync_director.py
+src/core/video/audio_sync/__init__.py
+src/core/video/legacy_generator.py
+tests/test_aaa_audio_experience_layer.py
+
+Testes:
+python -m compileall src
+python -m pytest tests\\test_aaa_audio_experience_layer.py -q
+python src\\main.py

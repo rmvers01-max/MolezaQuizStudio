@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 from datetime import datetime
 
+from .identity_engine import AAAIdentityEngine
 from .legacy_generator import LegacyVideoGenerator
 from .execution import ProductionPlanExecutor
 from .quiz_director import IntelligentQuizDirector
@@ -87,6 +88,7 @@ class VideoGenerator:
             IntelligentProductionEngine()
         )
         self.ipe_execution_layer = IPEExecutionLayer()
+        self.identity_engine = AAAIdentityEngine()
 
     @property
     def largura(self):
@@ -310,6 +312,21 @@ class VideoGenerator:
         universal_creative_plan[
             "intelligent_production_plan"
         ] = intelligent_production_plan.to_dict()
+
+        identity_plan = self.identity_engine.create_plan(
+            category=intelligent_production_plan.content_profile.category,
+            theme_pack=production_plan.to_dict().get(
+                "theme_pack",
+                universal_creative_plan.get("theme_pack", {}),
+            ),
+            production_mode=intelligent_production_plan.production_mode,
+        )
+        self.identity_engine.save(
+            identity_plan,
+            Path(pasta_projeto) / "videos" / "relatorios" / "identity_engine_report.json",
+        )
+        universal_creative_plan["identity_plan"] = identity_plan.to_dict()
+        universal_creative_plan["theme_pack"] = dict(identity_plan.corrected_theme_pack)
 
         ipe_execution_plan = (
             self.ipe_execution_layer.build(
