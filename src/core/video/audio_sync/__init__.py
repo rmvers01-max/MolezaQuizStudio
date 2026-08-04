@@ -1,9 +1,3 @@
-from .audio_sync_director import (
-    AudioCue,
-    AudioSyncDirector,
-)
+from .audio_sync_director import AudioCue, AudioExperienceDirector, AudioSyncDirector, ProceduralSfxSynthesizer
 
-__all__ = [
-    "AudioCue",
-    "AudioSyncDirector",
-]
+__all__=['AudioCue','AudioExperienceDirector','AudioSyncDirector','ProceduralSfxSynthesizer']

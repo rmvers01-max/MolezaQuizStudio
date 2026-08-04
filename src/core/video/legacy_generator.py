@@ -1248,6 +1248,46 @@ class LegacyVideoGenerator:
                     question_duration=duracao_pergunta,
                     response_time=tempo_resposta_pergunta,
                     reveal_duration=duracao_resposta,
+                    difficulty=float(
+                        getattr(
+                            question_direction,
+                            "difficulty_score",
+                            getattr(
+                                question_direction,
+                                "difficulty",
+                                50.0,
+                            ),
+                        )
+                        if question_direction is not None
+                        else 50.0
+                    ),
+                    surprise=bool(
+                        getattr(
+                            question_direction,
+                            "surprise_moment",
+                            False,
+                        )
+                        if question_direction is not None
+                        else False
+                    ),
+                    emotional_tone=str(
+                        getattr(
+                            story_beat,
+                            "emotional_tone",
+                            "",
+                        )
+                        if story_beat is not None
+                        else ""
+                    ),
+                    force_pattern_break=bool(
+                        getattr(
+                            ipe_directive,
+                            "force_pattern_break",
+                            False,
+                        )
+                        if ipe_directive is not None
+                        else False
+                    ),
                 )
             )
 
@@ -1255,6 +1295,13 @@ class LegacyVideoGenerator:
                 self.audio_sync.create_clips(
                     audio_cues
                 )
+            )
+
+            self.audio_sync.save_report(
+                Path(pasta_projeto)
+                / "videos"
+                / "relatorios"
+                / "audio_experience_report.json"
             )
 
         duracao_total = (
