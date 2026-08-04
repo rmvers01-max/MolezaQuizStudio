@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 import textwrap
-from pathlib import Path
 
 import numpy as np
 from PIL import (
@@ -21,24 +20,23 @@ from ..animations import (
 
 class OpeningStudio:
     """
-    Cria uma abertura curta, profissional e orientada à retenção.
+    AAA Opening Studio 2.0.
+
+    A abertura funciona como um trailer curto:
+    teaser visual -> gancho -> desafio -> transição para o jogo.
     """
 
     def __init__(
         self,
         largura=1280,
         altura=720,
-        fps=18,
+        fps=24,
     ):
-        self.largura = int(
-            largura
-        )
-        self.altura = int(
-            altura
-        )
+        self.largura = int(largura)
+        self.altura = int(altura)
         self.fps = max(
             int(fps),
-            12
+            18,
         )
         self.character_engine = (
             CharacterAnimationEngine()
@@ -54,838 +52,1184 @@ class OpeningStudio:
         duracao = float(
             direcao.get(
                 "duracao",
-                4.1
+                4.15,
             )
         )
 
         total_quadros = max(
-            int(
-                round(
-                    duracao
-                    * self.fps
-                )
-            ),
-            2
+            int(round(duracao * self.fps)),
+            2,
         )
 
-        quadros = []
+        frames = []
 
-        for indice in range(
-            total_quadros
-        ):
-            tempo = indice / self.fps
-            progresso = min(
-                tempo / max(
-                    duracao,
-                    0.001
-                ),
-                1.0
+        for index in range(total_quadros):
+            time = index / self.fps
+            progress = min(
+                time / max(duracao, 0.001),
+                1.0,
             )
 
-            quadro = self._renderizar_frame(
+            frame = self._render_frame(
                 titulo=titulo,
-                direcao=direcao,
+                direction=direcao,
                 brand_direction=brand_direction,
                 premium_theme=premium_theme,
-                tempo=tempo,
-                progresso=progresso,
+                time=time,
+                progress=progress,
             )
 
-            quadros.append(
+            frames.append(
                 np.asarray(
-                    quadro.convert(
-                        "RGB"
-                    )
+                    frame.convert("RGB")
                 )
             )
 
         return ImageSequenceClip(
-            quadros,
+            frames,
             fps=self.fps,
         ).with_duration(
             duracao
         )
 
-    def _renderizar_frame(
+    def _render_frame(
         self,
+        *,
         titulo,
-        direcao,
+        direction,
         brand_direction,
         premium_theme,
-        tempo,
-        progresso,
+        time,
+        progress,
     ):
-        cores = self._cores(
+        colors = self._colors(
             premium_theme,
-            brand_direction
+            brand_direction,
+            direction.get(
+                "categoria",
+                "general_knowledge",
+            ),
         )
 
-        imagem = self._fundo(
-            cores,
-            tempo
+        image = self._background(
+            colors=colors,
+            time=time,
+            camera_style=str(
+                direction.get(
+                    "camera_style",
+                    "hero_push",
+                )
+            ),
         )
 
-        desenho = ImageDraw.Draw(
-            imagem
+        self._particles(
+            image=image,
+            time=time,
+            intensity=float(
+                direction.get(
+                    "intensidade",
+                    0.84,
+                )
+            ),
+            colors=colors,
         )
 
-        self._desenhar_particulas(
-            imagem,
-            tempo,
-            direcao.get(
-                "intensidade",
-                0.82
-            )
-        )
+        draw = ImageDraw.Draw(image)
 
-        # Logo entra imediatamente.
-        p_logo = self._intervalo(
-            tempo,
+        # 0.0–0.9 s: teaser visual imediato.
+        teaser_progress = self._interval(
+            time,
             0.0,
-            0.62
+            0.72,
         )
 
-        escala_logo = SmartEasing.ease_out_back(
-            p_logo,
-            overshoot=1.25
-        )
-
-        self._texto_central(
-            desenho=desenho,
-            texto="MOLEZA QUIZ",
-            y=62,
-            tamanho=max(
-                int(
-                    48
-                    * escala_logo
-                ),
-                1
-            ),
-            cor=(255, 255, 255, 255),
-            contorno=(63, 31, 130, 255),
-            largura_contorno=4,
-        )
-
-        # Hook aparece antes do título.
-        p_hook = self._intervalo(
-            tempo,
-            0.22,
-            0.92
-        )
-
-        hook_y = int(
-            150
-            - 26
-            * (
-                1.0
-                - SmartEasing.ease_out_cubic(
-                    p_hook
+        self._draw_teasers(
+            image=image,
+            items=list(
+                direction.get(
+                    "teaser_items",
+                    [],
                 )
+            ),
+            progress=teaser_progress,
+            colors=colors,
+            time=time,
+        )
+
+        # Marca do canal entra cedo, mas não domina o primeiro quadro.
+        brand_progress = self._interval(
+            time,
+            0.05,
+            0.65,
+        )
+
+        brand_scale = max(
+            SmartEasing.ease_out_back(
+                brand_progress,
+                overshoot=1.12,
+            ),
+            0.01,
+        )
+
+        self._center_text(
+            draw=draw,
+            text="MOLEZA QUIZ",
+            y=36,
+            size=max(
+                int(35 * brand_scale),
+                1,
+            ),
+            color=(255, 255, 255, 255),
+            stroke=(54, 25, 105, 255),
+            stroke_width=4,
+            opacity=brand_progress,
+        )
+
+        # 0.45–1.55 s: gancho principal.
+        hook_progress = self._interval(
+            time,
+            0.42,
+            1.38,
+        )
+
+        hook_scale = max(
+            SmartEasing.ease_out_back(
+                hook_progress,
+                overshoot=1.08,
+            ),
+            0.01,
+        )
+
+        hook = str(
+            direction.get(
+                "hook_texto",
+                "VOCÊ CONSEGUE ACERTAR TODAS?",
             )
         )
 
-        self._texto_central(
-            desenho=desenho,
-            texto=str(
-                direcao.get(
-                    "hook_texto",
-                    "VOCÊ CONSEGUE ESCOLHER?"
-                )
-            ),
-            y=hook_y,
-            tamanho=31,
-            cor=(*cores["destaque"], 255),
-            contorno=(50, 25, 90, 255),
-            largura_contorno=3,
-            opacidade=p_hook,
-        )
-
-        # Título principal com entrada curta.
-        p_titulo = self._intervalo(
-            tempo,
-            0.55,
-            1.42
-        )
-
-        escala_titulo = max(
-            SmartEasing.ease_out_back(
-                p_titulo,
-                overshoot=1.18
-            ),
-            0.01
-        )
-
-        linhas = textwrap.wrap(
-            str(titulo),
-            width=28
+        hook_lines = textwrap.wrap(
+            hook,
+            width=31,
         )[:2]
 
-        y_titulo = 248
+        hook_y = 196
 
-        for linha in linhas:
-            tamanho = max(
-                int(
-                    55
-                    * escala_titulo
-                ),
-                1
-            )
-
-            self._texto_central(
-                desenho=desenho,
-                texto=linha.upper(),
-                y=y_titulo,
-                tamanho=tamanho,
-                cor=(255, 255, 255, 255),
-                contorno=(45, 22, 88, 255),
-                largura_contorno=5,
-                opacidade=p_titulo,
-            )
-
-            y_titulo += 68
-
-        # Quantidade funciona como promessa de conteúdo.
-        p_quantidade = self._intervalo(
-            tempo,
-            1.20,
-            1.85
-        )
-
-        if direcao.get(
-            "mostrar_quantidade",
-            True
-        ):
-            quantidade = (
-                f"{int(direcao.get('total_perguntas', 1))} "
-                "ESCOLHAS DIVERTIDAS"
-            )
-
-            self._badge_texto(
-                imagem=imagem,
-                texto=quantidade,
-                centro=(
-                    self.largura // 2,
-                    438
-                ),
-                progresso=p_quantidade,
-                cor=cores["secundaria"],
-            )
-
-        # CTA de início muito curto.
-        p_desafio = self._intervalo(
-            tempo,
-            2.10,
-            2.78
-        )
-
-        self._texto_central(
-            desenho=desenho,
-            texto=str(
-                direcao.get(
-                    "desafio_texto",
-                    "VAMOS COMEÇAR!"
-                )
-            ),
-            y=512,
-            tamanho=38,
-            cor=(*cores["destaque"], 255),
-            contorno=(60, 30, 100, 255),
-            largura_contorno=4,
-            opacidade=p_desafio,
-        )
-
-        # Mascote aparece na frente sem cobrir título.
-        if direcao.get(
-            "usar_mascote",
-            True
-        ):
-            p_mascote = self._intervalo(
-                tempo,
-                0.35,
-                1.30
-            )
-
-            mascote, dx, dy = (
-                self.character_engine
-                .renderizar(
-                    pose="wave",
-                    progresso=max(
-                        progresso,
-                        p_mascote
-                    ),
-                    tamanho_base=(205, 205),
-                    comportamento="wave",
-                    intensidade=1.08,
-                )
-            )
-
-            if mascote is not None:
-                entrada_x = int(
-                    210
-                    * (
-                        1.0
-                        - SmartEasing.ease_out_back(
-                            p_mascote,
-                            overshoot=1.18
-                        )
-                    )
-                )
-
-                x = (
-                    self.largura
-                    - mascote.width
-                    - 26
-                    + entrada_x
-                    + dx
-                )
-
-                y = (
-                    self.altura
-                    - mascote.height
-                    - 10
-                    + dy
-                )
-
-                imagem.alpha_composite(
-                    mascote,
-                    (x, y)
-                )
-
-        # Transição de saída rápida para a primeira pergunta.
-        p_saida = self._intervalo(
-            tempo,
-            max(
-                float(
-                    direcao.get(
-                        "duracao",
-                        4.1
-                    )
-                )
-                - 0.48,
-                0.0
-            ),
-            float(
-                direcao.get(
-                    "duracao",
-                    4.1
-                )
-            )
-        )
-
-        if p_saida > 0:
-            camada_saida = Image.new(
-                "RGBA",
-                imagem.size,
-                (
-                    255,
-                    255,
-                    255,
+        for line in hook_lines:
+            self._center_text(
+                draw=draw,
+                text=line,
+                y=hook_y,
+                size=max(
                     int(
-                        255
-                        * SmartEasing.ease_out_cubic(
-                            p_saida
-                        )
-                    )
+                        43 * hook_scale
+                    ),
+                    1,
+                ),
+                color=(
+                    *colors["highlight"],
+                    255,
+                ),
+                stroke=(48, 22, 84, 255),
+                stroke_width=5,
+                opacity=hook_progress,
+            )
+            hook_y += 54
+
+        # Título aparece como subtítulo contextual.
+        title_progress = self._interval(
+            time,
+            1.08,
+            1.82,
+        )
+
+        title_lines = textwrap.wrap(
+            str(titulo).upper(),
+            width=34,
+        )[:2]
+
+        title_y = 325
+
+        for line in title_lines:
+            self._center_text(
+                draw=draw,
+                text=line,
+                y=title_y,
+                size=34,
+                color=(255, 255, 255, 255),
+                stroke=(40, 20, 75, 255),
+                stroke_width=4,
+                opacity=title_progress,
+            )
+            title_y += 43
+
+        # Badge de quantidade.
+        quantity_progress = self._interval(
+            time,
+            1.45,
+            2.15,
+        )
+
+        if direction.get(
+            "mostrar_quantidade",
+            True,
+        ):
+            total = int(
+                direction.get(
+                    "total_perguntas",
+                    1,
                 )
             )
 
-            imagem.alpha_composite(
-                camada_saida
+            label = (
+                f"{total} DESAFIOS"
+                if direction.get(
+                    "categoria"
+                ) != "preference"
+                else f"{total} ESCOLHAS"
             )
 
-        return imagem
+            self._badge(
+                image=image,
+                text=label,
+                center=(
+                    self.largura // 2,
+                    432,
+                ),
+                progress=quantity_progress,
+                color=colors["secondary"],
+            )
 
-    def _fundo(
+        # CTA para participação.
+        challenge_progress = self._interval(
+            time,
+            2.00,
+            2.85,
+        )
+
+        challenge = str(
+            direction.get(
+                "desafio_texto",
+                "MARQUE UM PONTO PARA CADA ACERTO!",
+            )
+        )
+
+        self._center_text(
+            draw=draw,
+            text=challenge,
+            y=506,
+            size=30,
+            color=(255, 255, 255, 255),
+            stroke=(55, 25, 95, 255),
+            stroke_width=4,
+            opacity=challenge_progress,
+        )
+
+        # Mascote atua em três estados durante a abertura.
+        if direction.get(
+            "usar_mascote",
+            True,
+        ):
+            self._mascot_actor(
+                image=image,
+                direction=direction,
+                time=time,
+                progress=progress,
+            )
+
+        # Barra de energia prepara a primeira pergunta.
+        self._energy_line(
+            image=image,
+            progress=self._interval(
+                time,
+                2.55,
+                max(
+                    float(
+                        direction.get(
+                            "duracao",
+                            4.15,
+                        )
+                    )
+                    - 0.35,
+                    2.8,
+                ),
+            ),
+            colors=colors,
+        )
+
+        # Transição cinematográfica final.
+        self._transition(
+            image=image,
+            progress=self._interval(
+                time,
+                max(
+                    float(
+                        direction.get(
+                            "duracao",
+                            4.15,
+                        )
+                    )
+                    - 0.55,
+                    0.0,
+                ),
+                float(
+                    direction.get(
+                        "duracao",
+                        4.15,
+                    )
+                ),
+            ),
+            style=str(
+                direction.get(
+                    "transition_style",
+                    "light_wipe",
+                )
+            ),
+            colors=colors,
+        )
+
+        return image
+
+    def _mascot_actor(
         self,
-        cores,
-        tempo
+        *,
+        image,
+        direction,
+        time,
+        progress,
     ):
-        imagem = Image.new(
+        sequence = list(
+            direction.get(
+                "mascot_sequence",
+                [
+                    "wave",
+                    "thinking",
+                    "point_right",
+                ],
+            )
+        )
+
+        while len(sequence) < 3:
+            sequence.append(
+                sequence[-1]
+                if sequence
+                else "wave"
+            )
+
+        if time < 1.35:
+            pose = sequence[0]
+            local = self._interval(
+                time,
+                0.25,
+                1.25,
+            )
+        elif time < 2.55:
+            pose = sequence[1]
+            local = self._interval(
+                time,
+                1.25,
+                2.45,
+            )
+        else:
+            pose = sequence[2]
+            local = self._interval(
+                time,
+                2.45,
+                max(
+                    float(
+                        direction.get(
+                            "duracao",
+                            4.15,
+                        )
+                    )
+                    - 0.30,
+                    2.8,
+                ),
+            )
+
+        mascot, dx, dy = (
+            self.character_engine.renderizar(
+                pose=pose,
+                progresso=max(
+                    local,
+                    0.01,
+                ),
+                tamanho_base=(210, 210),
+                comportamento=pose,
+                intensidade=1.02,
+            )
+        )
+
+        if mascot is None:
+            return
+
+        enter = SmartEasing.ease_out_back(
+            self._interval(
+                time,
+                0.22,
+                1.0,
+            ),
+            overshoot=1.10,
+        )
+
+        x = int(
+            self.largura
+            - mascot.width
+            - 22
+            + (1.0 - enter) * 190
+            + dx
+        )
+
+        y = int(
+            self.altura
+            - mascot.height
+            - 8
+            + 4 * math.sin(time * 3.0)
+            + dy
+        )
+
+        image.alpha_composite(
+            mascot,
+            (x, y),
+        )
+
+    def _draw_teasers(
+        self,
+        *,
+        image,
+        items,
+        progress,
+        colors,
+        time,
+    ):
+        if not items:
+            return
+
+        layer = Image.new(
+            "RGBA",
+            image.size,
+            (0, 0, 0, 0),
+        )
+        draw = ImageDraw.Draw(layer)
+
+        count = len(items)
+        card_width = 118
+        card_height = 92
+        gap = 16
+
+        total_width = (
+            card_width * count
+            + gap * (count - 1)
+        )
+
+        start_x = (
+            self.largura
+            - total_width
+        ) // 2
+
+        y = 88
+
+        for index, item in enumerate(items):
+            item_progress = max(
+                min(
+                    progress * 1.45
+                    - index * 0.12,
+                    1.0,
+                ),
+                0.0,
+            )
+
+            scale = max(
+                SmartEasing.ease_out_back(
+                    item_progress,
+                    overshoot=1.08,
+                ),
+                0.01,
+            )
+
+            width = max(
+                int(card_width * scale),
+                1,
+            )
+            height = max(
+                int(card_height * scale),
+                1,
+            )
+
+            center_x = (
+                start_x
+                + index * (card_width + gap)
+                + card_width // 2
+            )
+
+            x1 = center_x - width // 2
+            y1 = y + (card_height - height) // 2
+            x2 = x1 + width
+            y2 = y1 + height
+
+            shadow = (
+                x1 + 5,
+                y1 + 7,
+                x2 + 5,
+                y2 + 7,
+            )
+
+            draw.rounded_rectangle(
+                shadow,
+                radius=20,
+                fill=(25, 15, 55, 90),
+            )
+
+            draw.rounded_rectangle(
+                (x1, y1, x2, y2),
+                radius=20,
+                fill=(255, 255, 255, 225),
+                outline=(
+                    *colors["highlight"],
+                    220,
+                ),
+                width=4,
+            )
+
+            font = self._font(
+                43 if len(str(item)) <= 2 else 31,
+                bold=True,
+            )
+
+            bbox = draw.textbbox(
+                (0, 0),
+                str(item),
+                font=font,
+            )
+
+            text_x = (
+                center_x
+                - (bbox[2] - bbox[0]) // 2
+            )
+
+            text_y = (
+                y1
+                + (height - (bbox[3] - bbox[1])) // 2
+                - 3
+            )
+
+            draw.text(
+                (text_x, text_y),
+                str(item),
+                font=font,
+                fill=(45, 35, 70, 255),
+            )
+
+        image.alpha_composite(layer)
+
+    def _energy_line(
+        self,
+        *,
+        image,
+        progress,
+        colors,
+    ):
+        if progress <= 0:
+            return
+
+        layer = Image.new(
+            "RGBA",
+            image.size,
+            (0, 0, 0, 0),
+        )
+
+        draw = ImageDraw.Draw(layer)
+
+        width = int(
+            (self.largura - 260)
+            * SmartEasing.ease_out_cubic(
+                progress
+            )
+        )
+
+        x1 = (
+            self.largura - width
+        ) // 2
+
+        y = 582
+
+        draw.rounded_rectangle(
+            (
+                130,
+                y,
+                self.largura - 130,
+                y + 12,
+            ),
+            radius=6,
+            fill=(255, 255, 255, 70),
+        )
+
+        draw.rounded_rectangle(
+            (
+                x1,
+                y,
+                x1 + width,
+                y + 12,
+            ),
+            radius=6,
+            fill=(
+                *colors["highlight"],
+                230,
+            ),
+        )
+
+        layer = layer.filter(
+            ImageFilter.GaussianBlur(
+                radius=1.4,
+            )
+        )
+
+        image.alpha_composite(layer)
+
+    def _transition(
+        self,
+        *,
+        image,
+        progress,
+        style,
+        colors,
+    ):
+        if progress <= 0:
+            return
+
+        eased = self._ease_in_out_cubic(
+
+
+            progress
+
+
+        )
+
+        layer = Image.new(
+            "RGBA",
+            image.size,
+            (0, 0, 0, 0),
+        )
+        draw = ImageDraw.Draw(layer)
+
+        if style in {
+            "split_choice",
+            "flag_wipe",
+        }:
+            half = int(
+                self.largura
+                * eased
+                / 2
+            )
+
+            draw.rectangle(
+                (
+                    0,
+                    0,
+                    half,
+                    self.altura,
+                ),
+                fill=(
+                    *colors["primary"],
+                    255,
+                ),
+            )
+
+            draw.rectangle(
+                (
+                    self.largura - half,
+                    0,
+                    self.largura,
+                    self.altura,
+                ),
+                fill=(
+                    *colors["secondary"],
+                    255,
+                ),
+            )
+        else:
+            x = int(
+                -self.largura
+                + self.largura * 2 * eased
+            )
+
+            draw.polygon(
+                (
+                    (x - 280, 0),
+                    (x + 140, 0),
+                    (x + 420, self.altura),
+                    (x, self.altura),
+                ),
+                fill=(255, 255, 255, 245),
+            )
+
+            draw.polygon(
+                (
+                    (x - 500, 0),
+                    (x - 250, 0),
+                    (x + 30, self.altura),
+                    (x - 220, self.altura),
+                ),
+                fill=(
+                    *colors["highlight"],
+                    220,
+                ),
+            )
+
+            if progress > 0.72:
+                alpha = int(
+                    255
+                    * (
+                        progress - 0.72
+                    )
+                    / 0.28
+                )
+
+                draw.rectangle(
+                    (
+                        0,
+                        0,
+                        self.largura,
+                        self.altura,
+                    ),
+                    fill=(
+                        255,
+                        255,
+                        255,
+                        alpha,
+                    ),
+                )
+
+        image.alpha_composite(layer)
+
+    def _background(
+        self,
+        *,
+        colors,
+        time,
+        camera_style,
+    ):
+        image = Image.new(
             "RGBA",
             (
                 self.largura,
-                self.altura
+                self.altura,
             ),
-            (0, 0, 0, 255)
+            (0, 0, 0, 255),
         )
 
-        desenho = ImageDraw.Draw(
-            imagem
-        )
+        draw = ImageDraw.Draw(image)
 
-        topo = cores["topo"]
-        base = cores["base"]
+        top = colors["top"]
+        bottom = colors["bottom"]
 
-        for y in range(
-            self.altura
-        ):
+        for y in range(self.altura):
             p = y / max(
                 self.altura - 1,
-                1
+                1,
             )
 
-            cor = tuple(
+            color = tuple(
                 int(
-                    topo[i]
+                    top[index]
                     + (
-                        base[i]
-                        - topo[i]
+                        bottom[index]
+                        - top[index]
                     )
                     * p
                 )
-                for i in range(3)
+                for index in range(3)
             )
 
-            desenho.line(
+            draw.line(
                 (
                     0,
                     y,
                     self.largura,
-                    y
+                    y,
                 ),
-                fill=cor
+                fill=color,
             )
 
-        luz = Image.new(
+        light = Image.new(
             "RGBA",
-            imagem.size,
-            (0, 0, 0, 0)
+            image.size,
+            (0, 0, 0, 0),
         )
 
-        desenho_luz = ImageDraw.Draw(
-            luz
+        light_draw = ImageDraw.Draw(light)
+
+        movement = int(
+            80 * math.sin(time * 0.85)
         )
 
-        deslocamento = int(
-            75
-            * math.sin(
-                tempo * 0.8
-            )
-        )
+        if camera_style in {
+            "fast_push",
+            "competition_push",
+        }:
+            movement *= 2
 
-        desenho_luz.ellipse(
+        light_draw.ellipse(
             (
-                -180 + deslocamento,
-                -130,
-                560 + deslocamento,
-                610
+                -180 + movement,
+                -180,
+                570 + movement,
+                610,
             ),
             fill=(
-                *cores["luz_a"],
-                95
-            )
+                *colors["light_a"],
+                100,
+            ),
         )
 
-        desenho_luz.ellipse(
+        light_draw.ellipse(
             (
-                720 - deslocamento,
-                -150,
-                1460 - deslocamento,
-                590
+                700 - movement,
+                -170,
+                1480 - movement,
+                600,
             ),
             fill=(
-                *cores["luz_b"],
-                85
-            )
+                *colors["light_b"],
+                90,
+            ),
         )
 
-        luz = luz.filter(
+        light = light.filter(
             ImageFilter.GaussianBlur(
-                radius=95
+                radius=105,
             )
         )
 
-        imagem.alpha_composite(
-            luz
-        )
+        image.alpha_composite(light)
 
-        return imagem
+        return image
 
-    def _desenhar_particulas(
+    def _particles(
         self,
-        imagem,
-        tempo,
-        intensidade
+        *,
+        image,
+        time,
+        intensity,
+        colors,
     ):
-        desenho = ImageDraw.Draw(
-            imagem
+        draw = ImageDraw.Draw(image)
+
+        amount = max(
+            int(30 * intensity),
+            10,
         )
 
-        quantidade = max(
-            int(
-                26
-                * float(
-                    intensidade
-                )
-            ),
-            12
-        )
-
-        for indice in range(
-            quantidade
-        ):
+        for index in range(amount):
             x = (
-                indice * 97
-                + 31
-                + int(
-                    18
-                    * math.sin(
-                        tempo * 1.6
-                        + indice
-                    )
-                )
+                index * 137
+                + int(time * (18 + index % 5))
             ) % self.largura
 
             y = (
-                indice * 59
-                + 23
+                index * 83
                 + int(
-                    12
-                    * math.cos(
-                        tempo * 1.2
-                        + indice
+                    14
+                    * math.sin(
+                        time * 1.2
+                        + index
                     )
                 )
             ) % self.altura
 
-            raio = 2 + (
-                indice % 4
+            radius = 2 + index % 4
+
+            color = (
+                colors["highlight"]
+                if index % 2 == 0
+                else colors["secondary"]
             )
 
-            desenho.ellipse(
+            draw.ellipse(
                 (
-                    x - raio,
-                    y - raio,
-                    x + raio,
-                    y + raio
+                    x - radius,
+                    y - radius,
+                    x + radius,
+                    y + radius,
                 ),
                 fill=(
-                    255,
-                    255,
-                    255,
-                    70
-                    + (
-                        indice % 3
-                    )
-                    * 25
-                )
+                    *color,
+                    70 + index % 70,
+                ),
             )
 
-    def _badge_texto(
+    def _badge(
         self,
-        imagem,
-        texto,
-        centro,
-        progresso,
-        cor
+        *,
+        image,
+        text,
+        center,
+        progress,
+        color,
     ):
-        if progresso <= 0:
+        if progress <= 0:
             return
 
-        escala = max(
+        layer = Image.new(
+            "RGBA",
+            image.size,
+            (0, 0, 0, 0),
+        )
+
+        draw = ImageDraw.Draw(layer)
+
+        scale = max(
             SmartEasing.ease_out_back(
-                progresso,
-                overshoot=1.18
+                progress,
+                overshoot=1.10,
             ),
-            0.01
+            0.01,
         )
 
-        fonte = self._fonte(
+        font = self._font(
             max(
-                int(
-                    25 * escala
-                ),
-                1
+                int(28 * scale),
+                1,
             ),
-            True
+            bold=True,
         )
 
-        desenho = ImageDraw.Draw(
-            imagem
-        )
-
-        caixa = desenho.textbbox(
+        bbox = draw.textbbox(
             (0, 0),
-            texto,
-            font=fonte
+            text,
+            font=font,
         )
 
-        largura = (
-            caixa[2]
-            - caixa[0]
+        width = (
+            bbox[2] - bbox[0] + 52
         )
 
-        altura = (
-            caixa[3]
-            - caixa[1]
+        height = (
+            bbox[3] - bbox[1] + 25
         )
 
-        x1 = int(
-            centro[0]
-            - largura / 2
-            - 28
-        )
+        x1 = center[0] - width // 2
+        y1 = center[1] - height // 2
 
-        y1 = int(
-            centro[1]
-            - altura / 2
-            - 13
-        )
-
-        x2 = int(
-            centro[0]
-            + largura / 2
-            + 28
-        )
-
-        y2 = int(
-            centro[1]
-            + altura / 2
-            + 15
-        )
-
-        desenho.rounded_rectangle(
+        draw.rounded_rectangle(
             (
                 x1,
                 y1,
-                x2,
-                y2
+                x1 + width,
+                y1 + height,
             ),
-            radius=22,
+            radius=height // 2,
             fill=(
-                *cor,
-                int(
-                    235
-                    * progresso
-                )
+                *color,
+                int(230 * progress),
             ),
             outline=(
                 255,
                 255,
                 255,
-                int(
-                    230
-                    * progresso
-                )
+                int(220 * progress),
             ),
-            width=3
+            width=3,
         )
 
-        desenho.text(
+        draw.text(
             (
-                centro[0]
-                - largura / 2,
-                centro[1]
-                - altura / 2
-                - 2
+                center[0]
+                - (bbox[2] - bbox[0]) // 2,
+                center[1]
+                - (bbox[3] - bbox[1]) // 2
+                - 2,
             ),
-            texto,
-            font=fonte,
+            text,
+            font=font,
             fill=(
                 255,
                 255,
                 255,
-                int(
-                    255
-                    * progresso
-                )
+                int(255 * progress),
             ),
-            stroke_width=2,
-            stroke_fill=(
-                50,
-                25,
-                95,
-                int(
-                    220
-                    * progresso
-                )
-            )
         )
 
-    def _texto_central(
+        image.alpha_composite(layer)
+
+    def _center_text(
         self,
-        desenho,
-        texto,
+        *,
+        draw,
+        text,
         y,
-        tamanho,
-        cor,
-        contorno,
-        largura_contorno,
-        opacidade=1.0,
+        size,
+        color,
+        stroke,
+        stroke_width,
+        opacity=1.0,
     ):
-        if (
-            opacidade <= 0
-            or tamanho <= 0
-        ):
+        if opacity <= 0:
             return
 
-        fonte = self._fonte(
-            tamanho,
-            True
+        font = self._font(
+            max(int(size), 1),
+            bold=True,
         )
 
-        caixa = desenho.textbbox(
+        bbox = draw.textbbox(
             (0, 0),
-            texto,
-            font=fonte,
-            stroke_width=largura_contorno
+            text,
+            font=font,
+            stroke_width=stroke_width,
         )
 
-        largura = (
-            caixa[2]
-            - caixa[0]
-        )
+        x = (
+            self.largura
+            - (bbox[2] - bbox[0])
+        ) // 2
 
-        desenho.text(
-            (
-                (
-                    self.largura
-                    - largura
-                ) / 2,
-                y
-            ),
-            texto,
-            font=fonte,
+        draw.text(
+            (x, y),
+            text,
+            font=font,
             fill=(
-                cor[0],
-                cor[1],
-                cor[2],
+                color[0],
+                color[1],
+                color[2],
                 int(
-                    cor[3]
-                    * opacidade
-                )
-            ),
-            stroke_width=largura_contorno,
-            stroke_fill=(
-                contorno[0],
-                contorno[1],
-                contorno[2],
-                int(
-                    contorno[3]
-                    * opacidade
-                )
-            )
-        )
-
-    def _intervalo(
-        self,
-        tempo,
-        inicio,
-        fim
-    ):
-        if fim <= inicio:
-            return 1.0
-
-        return min(
-            max(
-                (
-                    tempo - inicio
-                )
-                / (
-                    fim - inicio
+                    color[3] * opacity
                 ),
-                0.0
             ),
-            1.0
+            stroke_width=stroke_width,
+            stroke_fill=(
+                stroke[0],
+                stroke[1],
+                stroke[2],
+                int(
+                    stroke[3] * opacity
+                ),
+            ),
         )
 
-    def _fonte(
-        self,
-        tamanho,
-        negrito=False
-    ):
-        nomes = (
-            [
-                "arialbd.ttf",
-                "calibrib.ttf"
-            ]
-            if negrito
-            else [
-                "arial.ttf",
-                "calibri.ttf"
-            ]
-        )
-
-        for nome in nomes:
-            caminho = (
-                Path(
-                    "C:/Windows/Fonts"
-                )
-                / nome
-            )
-
-            if caminho.exists():
-                return ImageFont.truetype(
-                    str(caminho),
-                    tamanho
-                )
-
-        return ImageFont.load_default()
-
-    def _cores(
+    def _colors(
         self,
         premium_theme,
-        brand_direction
+        brand_direction,
+        category,
     ):
-        codigo = str(
-            getattr(
-                premium_theme,
-                "codigo",
-                "moleza_vibrante"
-            )
-        )
-
-        temas = {
-            "candy_party": {
-                "topo": (205, 70, 184),
-                "base": (75, 40, 145),
-                "destaque": (255, 225, 80),
-                "secundaria": (255, 100, 155),
-                "luz_a": (255, 110, 190),
-                "luz_b": (95, 170, 255),
+        palettes = {
+            "flags_geography": {
+                "top": (48, 92, 190),
+                "bottom": (39, 35, 105),
+                "primary": (46, 105, 220),
+                "secondary": (235, 65, 85),
+                "highlight": (255, 221, 75),
+                "light_a": (90, 190, 255),
+                "light_b": (255, 100, 135),
             },
-            "neon_future": {
-                "topo": (25, 35, 105),
-                "base": (12, 12, 45),
-                "destaque": (80, 255, 225),
-                "secundaria": (170, 80, 255),
-                "luz_a": (40, 245, 225),
-                "luz_b": (185, 75, 255),
+            "preference": {
+                "top": (111, 48, 185),
+                "bottom": (44, 25, 105),
+                "primary": (255, 85, 120),
+                "secondary": (66, 145, 255),
+                "highlight": (255, 218, 75),
+                "light_a": (255, 92, 150),
+                "light_b": (75, 155, 255),
             },
-            "jungle_adventure": {
-                "topo": (38, 120, 82),
-                "base": (18, 52, 50),
-                "destaque": (255, 220, 75),
-                "secundaria": (85, 170, 95),
-                "luz_a": (100, 225, 130),
-                "luz_b": (255, 205, 65),
+            "animals": {
+                "top": (55, 150, 120),
+                "bottom": (24, 87, 95),
+                "primary": (55, 175, 125),
+                "secondary": (255, 157, 66),
+                "highlight": (255, 230, 105),
+                "light_a": (95, 225, 160),
+                "light_b": (255, 185, 95),
             },
-            "game_arena": {
-                "topo": (40, 72, 175),
-                "base": (25, 24, 75),
-                "destaque": (255, 215, 55),
-                "secundaria": (255, 80, 110),
-                "luz_a": (70, 170, 255),
-                "luz_b": (255, 70, 150),
-            },
-            "princess_dream": {
-                "topo": (180, 82, 176),
-                "base": (72, 42, 122),
-                "destaque": (255, 225, 105),
-                "secundaria": (235, 110, 205),
-                "luz_a": (255, 125, 210),
-                "luz_b": (150, 115, 255),
+            "food": {
+                "top": (235, 88, 112),
+                "bottom": (116, 42, 112),
+                "primary": (255, 98, 115),
+                "secondary": (255, 165, 65),
+                "highlight": (255, 235, 98),
+                "light_a": (255, 135, 155),
+                "light_b": (255, 190, 90),
             },
         }
 
-        return temas.get(
-            codigo,
+        return palettes.get(
+            category,
             {
-                "topo": (90, 55, 180),
-                "base": (35, 28, 92),
-                "destaque": (255, 215, 65),
-                "secundaria": (255, 95, 135),
-                "luz_a": (255, 100, 170),
-                "luz_b": (80, 155, 255),
-            }
+                "top": (92, 55, 180),
+                "bottom": (38, 28, 95),
+                "primary": (112, 68, 210),
+                "secondary": (61, 155, 225),
+                "highlight": (255, 220, 70),
+                "light_a": (145, 95, 255),
+                "light_b": (65, 180, 255),
+            },
+        )
+
+    def _font(
+        self,
+        size,
+        bold=False,
+    ):
+        candidates = (
+            (
+                "C:/Windows/Fonts/arialbd.ttf",
+                "C:/Windows/Fonts/Arial.ttf",
+            )
+            if bold
+            else (
+                "C:/Windows/Fonts/Arial.ttf",
+                "C:/Windows/Fonts/arialbd.ttf",
+            )
+        )
+
+        for path in candidates:
+            try:
+                return ImageFont.truetype(
+                    path,
+                    max(int(size), 1),
+                )
+            except OSError:
+                continue
+
+        return ImageFont.load_default()
+
+    def _ease_in_out_cubic(
+        self,
+        value,
+    ):
+        t = max(
+            min(
+                float(value),
+                1.0,
+            ),
+            0.0,
+        )
+
+        if t < 0.5:
+            return 4.0 * t * t * t
+
+        return (
+            1.0
+            - pow(
+                -2.0 * t + 2.0,
+                3,
+            )
+            / 2.0
+        )
+
+    def _interval(
+        self,
+        time,
+        start,
+        end,
+    ):
+        if end <= start:
+            return 1.0
+
+        return max(
+            min(
+                (time - start)
+                / (end - start),
+                1.0,
+            ),
+            0.0,
         )

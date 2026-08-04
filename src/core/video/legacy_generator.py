@@ -13,7 +13,11 @@ from .attention import (
     PatternBreakDirector,
     ViewerAttentionAnalyzer,
 )
-from .opening import OpeningDirector, OpeningStudio
+from .opening import (
+    OpeningDirector,
+    OpeningReportWriter,
+    OpeningStudio,
+)
 from .outro import OutroStudio
 from .universal.legacy_motion import (
     UniversalLegacyMotionRenderer,
@@ -74,6 +78,10 @@ class LegacyVideoGenerator:
         self.total_perguntas_contexto = 1
 
         self.opening_director = OpeningDirector()
+        self.opening_report_writer = (
+            OpeningReportWriter()
+        )
+
         self.opening_studio = OpeningStudio(
             largura=self.largura,
             altura=self.altura,
@@ -331,12 +339,25 @@ class LegacyVideoGenerator:
             )
         )
 
+        production_plan = dict(
+            self.universal_visual_context.get(
+                "intelligent_production_plan",
+                {}
+            )
+        )
+
         direction = (
             self.opening_director
             .escolher(
                 titulo=titulo,
                 total_perguntas=quantidade,
                 retention_plan=retention_plan,
+                quiz_type=getattr(
+                    self,
+                    "quiz_type_contexto",
+                    None,
+                ),
+                production_plan=production_plan,
             )
         )
 
@@ -367,6 +388,30 @@ class LegacyVideoGenerator:
 
         clip = clip.with_duration(
             target_duration
+        )
+
+        project_root = Path(
+            pasta_frames
+        )
+
+        for parent in (
+            project_root,
+            *project_root.parents,
+        ):
+            if (
+                parent / "videos"
+            ).exists():
+                project_root = parent
+                break
+
+        self.opening_report_writer.save(
+            direction,
+            (
+                project_root
+                / "videos"
+                / "relatorios"
+                / "opening_report_v2.json"
+            )
         )
 
         return {

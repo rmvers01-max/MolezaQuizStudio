@@ -28,6 +28,7 @@ from .premium_themes import PremiumThemeRegistry
 from core.retention import RetentionDirector
 from ..opening import (
     OpeningDirector,
+    OpeningReportWriter,
     OpeningStudio,
 )
 from ...brand import (
@@ -135,6 +136,10 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         )
         self.opening_director = (
             OpeningDirector()
+        )
+
+        self.opening_report_writer = (
+            OpeningReportWriter()
         )
 
         self.opening_studio = (
@@ -304,7 +309,18 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
                     self,
                     "retention_plan",
                     {}
-                )
+                ),
+                quiz_type="preferencia",
+                production_plan=dict(
+                    getattr(
+                        self,
+                        "universal_visual_context",
+                        {}
+                    ).get(
+                        "intelligent_production_plan",
+                        {}
+                    )
+                ),
             )
         )
 
@@ -313,6 +329,14 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
             direcao=direcao,
             brand_direction=self.brand_direction,
             premium_theme=self.premium_theme
+        )
+
+        self.opening_report_writer.save(
+            direcao,
+            (
+                Path(pasta_frames)
+                / "opening_report_v2.json"
+            )
         )
 
         self.timeline_writer.salvar(
