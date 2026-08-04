@@ -6,6 +6,11 @@ import textwrap
 from PIL import Image, ImageDraw, ImageFont
 
 from .audio_sync import AudioSyncDirector
+from .curiosity import (
+    CuriosityExperienceDirector,
+    CuriosityExperienceStudio,
+    CuriosityReportWriter,
+)
 from .execution import ExecutionSettings
 from .quiz_director import QuizDirectionPlan
 from .story_engine import StoryArcPlan
@@ -98,6 +103,11 @@ class LegacyVideoGenerator:
         self.ending_director = AAAEndingDirector()
         self.ending_quality = EndingQualityAnalyzer()
         self.ending_report_writer = EndingReportWriter()
+        self.curiosity_director = CuriosityExperienceDirector()
+        self.curiosity_studio = CuriosityExperienceStudio(
+            width=self.largura, height=self.altura, fps=18
+        )
+        self.curiosity_report_writer = CuriosityReportWriter()
 
         self.outro_studio = OutroStudio(
             width=self.largura,
@@ -1308,6 +1318,31 @@ class LegacyVideoGenerator:
         if ipe_directive is not None:
             duracao_resposta += float(ipe_directive.reveal_duration_delta)
 
+        category = str(
+            self.universal_visual_context.get("intelligent_production_plan", {})
+            .get("content_profile", {}).get("category",
+                "preference" if quiz_preferencia else "general_knowledge")
+        )
+        curiosity_plan = self.curiosity_director.create_plan(
+            question=pergunta,
+            quiz_type="preferencia" if quiz_preferencia else "conhecimento",
+            category=category, default_duration=3.2,
+        )
+        duracao_curiosidade = 0.0
+        if curiosity_plan.enabled:
+            curiosity_clip = self.curiosity_studio.create_clip(
+                plan=curiosity_plan, theme_pack=self._theme_pack(),
+                question_number=numero,
+            )
+            if curiosity_clip is not None:
+                clips_video.append(curiosity_clip)
+                duracao_curiosidade = curiosity_plan.duration
+            self.curiosity_report_writer.save(
+                curiosity_plan,
+                Path(pasta_projeto) / "videos" / "relatorios" / "curiosity_experience_report.json",
+                question_number=numero,
+            )
+
         if self.execution_settings.audio_sync_enabled:
             audio_cues = (
                 self.audio_sync
@@ -1381,6 +1416,7 @@ class LegacyVideoGenerator:
             duracao_pergunta
             + tempo_resposta_pergunta
             + duracao_resposta
+            + duracao_curiosidade
         )
 
         self._salvar_relatorio_layout(

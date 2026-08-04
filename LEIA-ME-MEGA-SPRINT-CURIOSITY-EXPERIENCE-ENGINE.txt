@@ -1,0 +1,47 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — CURIOSITY EXPERIENCE ENGINE 1.0
+
+Objetivo:
+criar as telas ilustradas de curiosidades vistas no showcase.
+
+Lógica de preferência:
+Pergunta -> escolhas -> contagem -> convite à escolha -> curiosidade A/B -> próxima pergunta.
+Nunca mostra resposta correta, check verde ou erro.
+
+Lógica de conhecimento:
+Pergunta -> contagem -> resposta -> curiosidade/explicação -> próxima pergunta.
+
+Segurança factual:
+o sistema usa somente os campos fornecidos no projeto:
+- curiosidade
+- curiosidade_a
+- curiosidade_b
+- explicacao
+- imagem_curiosidade
+- imagem_curiosidade_a
+- imagem_curiosidade_b
+Se nenhum conteúdo estiver preenchido, nenhuma curiosidade factual é inventada.
+
+Mudança visual:
+- cartão grande ilustrado;
+- título CURIOSIDADE! ou VOCÊ SABIA?;
+- imagem opcional;
+- fundo temático iluminado;
+- partículas suaves;
+- transição para próxima pergunta.
+
+Relatório:
+videos/relatorios/curiosity_experience_report.json
+
+Novos arquivos:
+src/core/video/curiosity/
+tests/test_curiosity_experience_engine.py
+
+Atualizados:
+src/core/video/templates/preference_renderer.py
+src/core/video/legacy_generator.py
+
+Testes:
+python -m compileall src
+python -m pytest tests\test_curiosity_experience_engine.py -q
+python src\main.py
