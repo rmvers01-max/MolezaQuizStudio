@@ -1,0 +1,34 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — AAA KNOWLEDGE RENDERER 2.0
+
+Fluxo:
+pergunta → opções → contagem → revelação → explicação opcional
+→ curiosidade somente quando selecionada → próxima pergunta.
+
+A revelação:
+- destaca a resposta correta;
+- reduz discretamente as incorretas;
+- não usa X vermelho piscando;
+- pode mostrar explicação cadastrada.
+
+Presets:
+- bandeiras: hero_flag, radial_compass, country_reveal;
+- animais: hero_animal, paw_countdown, nature_reveal;
+- comidas: hero_food, plate_countdown, flavor_reveal;
+- esportes: hero_sport, scoreboard_countdown, score_reveal;
+- personagens: hero_character, mystery_countdown, character_reveal;
+- conhecimentos gerais: neon_ring e answer_spotlight.
+
+Curiosidades continuam obedecendo ao Curiosity Distribution Director:
+não aparecem em todas as perguntas.
+
+Relatórios:
+videos/relatorios/knowledge_renderer_report.json
+videos/relatorios/scene_graph_report.json
+
+Scene Graph 4.4.
+
+Teste:
+python -m compileall src
+python -m pytest tests\test_aaa_knowledge_renderer_2.py -q
+python src\main.py

@@ -19,6 +19,11 @@ from .attention import (
     ViewerAttentionAnalyzer,
 )
 from .mascot_actor import MascotActorReportWriter
+from .knowledge_experience import (
+    AAAKnowledgeVisualDirector,
+    KnowledgeRendererReportWriter,
+    KnowledgeRevealPlanner,
+)
 from .opening import (
     OpeningDirector,
     OpeningReportWriter,
@@ -109,6 +114,12 @@ class LegacyVideoGenerator:
         )
         self.curiosity_report_writer = CuriosityReportWriter()
 
+        self.knowledge_visual_director = AAAKnowledgeVisualDirector()
+        self.knowledge_reveal_planner = KnowledgeRevealPlanner()
+        self.knowledge_report_writer = KnowledgeRendererReportWriter()
+        self.last_knowledge_visual_profile = None
+        self.last_knowledge_reveal_plan = None
+
         self.outro_studio = OutroStudio(
             width=self.largura,
             height=self.altura,
@@ -170,6 +181,57 @@ class LegacyVideoGenerator:
             / "relatorios"
             / "mascot_actor_report.json",
         )
+
+    def _preparar_renderer_conhecimento(
+        self,
+        *,
+        pergunta,
+        numero,
+        total_perguntas,
+        categoria,
+        curiosity_selected=False,
+        pattern_break=False,
+        pasta_projeto=None,
+    ):
+        profile = self.knowledge_visual_director.choose(
+            question=pergunta,
+            question_number=numero,
+            total_questions=total_perguntas,
+            category=categoria,
+            curiosity_selected=curiosity_selected,
+            pattern_break=pattern_break,
+        )
+
+        reveal_plan = self.knowledge_reveal_planner.create(
+            question=pergunta,
+            profile=profile,
+        )
+
+        self.last_knowledge_visual_profile = profile
+        self.last_knowledge_reveal_plan = reveal_plan
+
+        if hasattr(
+            self.universal_scene_renderer,
+            "configure_knowledge_profile",
+        ):
+            self.universal_scene_renderer.configure_knowledge_profile(
+                profile.to_dict(),
+                reveal_plan,
+            )
+
+        if pasta_projeto is not None:
+            self.knowledge_report_writer.save(
+                profile=profile,
+                reveal_plan=reveal_plan,
+                path=(
+                    Path(pasta_projeto)
+                    / "videos"
+                    / "relatorios"
+                    / "knowledge_renderer_report.json"
+                ),
+            )
+
+        return profile, reveal_plan
 
     def _salvar_relatorio_qualidade(
         self,
@@ -1040,6 +1102,48 @@ class LegacyVideoGenerator:
             numero
         )
         ipe_directive = self._diretiva_ipe(numero)
+
+        content_profile = (
+            self.universal_visual_context
+            .get("intelligent_production_plan", {})
+            .get("content_profile", {})
+        )
+
+        knowledge_category = str(
+            content_profile.get(
+                "category",
+                "general_knowledge",
+            )
+        )
+
+        pattern_break_active = bool(
+            getattr(
+                ipe_directive,
+                "force_pattern_break",
+                False,
+            )
+            if ipe_directive is not None
+            else False
+        )
+
+        self._preparar_renderer_conhecimento(
+            pergunta=pergunta,
+            numero=numero,
+            total_perguntas=max(
+                int(
+                    getattr(
+                        self,
+                        "total_perguntas_contexto",
+                        numero,
+                    )
+                ),
+                numero,
+            ),
+            categoria=knowledge_category,
+            curiosity_selected=False,
+            pattern_break=pattern_break_active,
+            pasta_projeto=pasta_projeto,
+        )
 
         # O plano define o ritmo mínimo, mas nunca corta a narração.
         duracao_pergunta = max(

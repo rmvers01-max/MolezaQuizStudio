@@ -122,6 +122,8 @@ class UniversalSceneRenderer:
         self.identity_engine = AAAIdentityEngine()
         self.identity_plan = {}
         self.last_identity_evaluation = None
+        self.knowledge_profile = {}
+        self.knowledge_reveal_plan = {}
 
         self.pattern_break = (
             PatternBreakDirector()
@@ -138,6 +140,10 @@ class UniversalSceneRenderer:
             "mascot_enabled": True,
             "mascot_intensity": 0.80,
         }
+
+    def configure_knowledge_profile(self, profile, reveal_plan):
+        self.knowledge_profile = dict(profile or {})
+        self.knowledge_reveal_plan = dict(reveal_plan or {})
 
     def configure_identity(self, plan):
         self.identity_plan = plan.to_dict() if hasattr(plan, "to_dict") else dict(plan or {})
@@ -867,7 +873,11 @@ class UniversalSceneRenderer:
                 else None
             ),
             "identity_engine": self.last_identity_evaluation,
-            "graph_version": "4.3",
+            "knowledge_renderer": {
+                "profile": dict(self.knowledge_profile),
+                "reveal_plan": dict(self.knowledge_reveal_plan),
+            },
+            "graph_version": "4.4",
         })
         self.last_scene_graph_report = self.scene_graph_diagnostics.graph_to_dict(
             graph,
