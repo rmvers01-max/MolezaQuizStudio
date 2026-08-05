@@ -1,0 +1,35 @@
+MOLEZA QUIZ STUDIO
+CORREÇÃO DEFINITIVA — OPENING STUDIO COLORS
+
+Erros corrigidos:
+- OpeningStudio sem atributo _colors
+- OpeningStudio sem atributo _resolve_opening_colors
+
+Antes de instalar:
+1. Feche completamente o MolezaQuizStudio.
+2. Extraia o ZIP em D:\MolezaQuizStudio.
+3. Confirme a substituição dos arquivos.
+
+Depois, no PowerShell:
+
+cd D:\MolezaQuizStudio
+.\.venv\Scripts\Activate.ps1
+
+Get-ChildItem -Path . -Recurse -Directory -Filter __pycache__ |
+    Remove-Item -Recurse -Force
+
+Get-ChildItem -Path . -Recurse -File -Include *.pyc |
+    Remove-Item -Force
+
+$env:PYTHONPATH="D:\MolezaQuizStudio\src"
+python scripts\diagnosticar_opening_studio.py
+
+Resultado esperado:
+
+_resolve_opening_colors: True
+_colors: True
+OPENING COLORS OK
+
+Depois:
+
+python src\main.py

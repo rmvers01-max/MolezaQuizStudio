@@ -1,0 +1,29 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — AAA PERFORMANCE ENGINE 1.0
+
+Implementado:
+- cache LRU de até 384 MB no modo balanced;
+- cache de fontes;
+- cache dos fundos da abertura em intervalos de 0,25 s;
+- blur adaptativo no Motion Graphics;
+- profiler e métricas;
+- perfis balanced, fast e quality;
+- relatório performance_engine_report.json.
+
+Perfil indicado para seu notebook:
+balanced.
+
+Esta versão não ativa paralelismo total das perguntas. MoviePy e a escrita
+dos frames exigem isolamento adicional. A prioridade aqui é ganho seguro,
+sem corromper arquivos nem aumentar o uso de RAM.
+
+Instalação:
+1. Feche o programa.
+2. Extraia em D:\MolezaQuizStudio.
+3. Limpe __pycache__ e *.pyc.
+4. Execute:
+
+$env:PYTHONPATH="D:\MolezaQuizStudio\src"
+python scripts\diagnosticar_performance_engine.py
+python -m pytest tests\test_aaa_performance_engine_1.py -q
+python src\main.py

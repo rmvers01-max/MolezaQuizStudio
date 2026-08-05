@@ -1,0 +1,10 @@
+CORREÇÃO — PERFORMANCE ENGINE NO OPENING STUDIO
+
+Corrige o erro:
+'OpeningStudio' object has no attribute 'performance_engine'
+
+Depois de extrair em D:\MolezaQuizStudio, limpe __pycache__ e *.pyc e execute:
+
+$env:PYTHONPATH="D:\MolezaQuizStudio\src"
+python scripts\diagnosticar_opening_performance_engine.py
+python src\main.py

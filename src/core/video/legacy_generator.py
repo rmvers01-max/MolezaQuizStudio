@@ -19,6 +19,9 @@ from .attention import (
     ViewerAttentionAnalyzer,
 )
 from .mascot_actor import MascotActorReportWriter
+from .performance_engine import AAAPerformanceEngine, PerformanceReportWriter
+from .camera_director import AAACameraReportWriter
+from .motion_graphics import MotionGraphicsReportWriter
 from .theme_experience import ThemeExperienceReportWriter
 from .knowledge_experience import (
     AAAKnowledgeVisualDirector,
@@ -121,6 +124,10 @@ class LegacyVideoGenerator:
         self.last_knowledge_visual_profile = None
         self.last_knowledge_reveal_plan = None
         self.theme_experience_report_writer = ThemeExperienceReportWriter()
+        self.motion_graphics_report_writer = MotionGraphicsReportWriter()
+        self.aaa_camera_report_writer = AAACameraReportWriter()
+        self.performance_engine = AAAPerformanceEngine()
+        self.performance_report_writer = PerformanceReportWriter()
 
         self.outro_studio = OutroStudio(
             width=self.largura,
@@ -1545,6 +1552,50 @@ class LegacyVideoGenerator:
                     / "theme_experience_report.json"
                 ),
             )
+
+        motion_plan = getattr(
+            self.universal_scene_renderer,
+            "last_motion_graphics_plan",
+            None,
+        )
+
+        if motion_plan is not None:
+            self.motion_graphics_report_writer.save(
+                motion_plan,
+                (
+                    Path(pasta_projeto)
+                    / "videos"
+                    / "relatorios"
+                    / "motion_graphics_report.json"
+                ),
+            )
+
+        camera_plan = getattr(
+            self.universal_scene_renderer,
+            "last_aaa_camera_plan",
+            None,
+        )
+
+        if camera_plan is not None:
+            self.aaa_camera_report_writer.save(
+                camera_plan,
+                (
+                    Path(pasta_projeto)
+                    / "videos"
+                    / "relatorios"
+                    / "aaa_camera_report.json"
+                ),
+            )
+
+        self.performance_report_writer.save(
+            self.performance_engine,
+            (
+                Path(pasta_projeto)
+                / "videos"
+                / "relatorios"
+                / "performance_engine_report.json"
+            ),
+        )
 
         self._salvar_relatorio_qualidade(
             pasta_projeto

@@ -13,6 +13,7 @@ from PIL import (
 from moviepy import ImageSequenceClip
 
 from ..animations import SmartEasing
+from ..performance_engine import AAAPerformanceEngine
 from ..mascot_actor import MascotActorAnimator, MascotPerformanceDirector
 
 
@@ -35,6 +36,10 @@ class OpeningStudio:
         self.fps = max(
             int(fps),
             18,
+        )
+
+        self.performance_engine = (
+            AAAPerformanceEngine()
         )
         self.mascot_performance_director = MascotPerformanceDirector()
         self.mascot_actor_animator = MascotActorAnimator()
@@ -89,6 +94,19 @@ class OpeningStudio:
             duracao
         )
 
+    def _get_performance_engine(self):
+        engine = getattr(
+            self,
+            "performance_engine",
+            None,
+        )
+
+        if engine is None:
+            engine = AAAPerformanceEngine()
+            self.performance_engine = engine
+
+        return engine
+
     def _render_frame(
         self,
         *,
@@ -99,7 +117,7 @@ class OpeningStudio:
         time,
         progress,
     ):
-        colors = self._colors(
+        colors = self._resolve_opening_colors(
             premium_theme,
             brand_direction,
             direction.get(
@@ -108,16 +126,44 @@ class OpeningStudio:
             ),
         )
 
-        image = self._background(
-            colors=colors,
-            time=time,
-            camera_style=str(
-                direction.get(
-                    "camera_style",
-                    "hero_push",
-                )
-            ),
+        camera_style = str(
+            direction.get(
+                "camera_style",
+                "hero_push",
+            )
         )
+
+        background_bucket = round(
+            float(time) * 4.0
+        ) / 4.0
+
+        with self._get_performance_engine().profiler.measure(
+            "opening_background"
+        ):
+            image = self._get_performance_engine().cached_image(
+                (
+                    "opening_background",
+                    self.largura,
+                    self.altura,
+                    tuple(
+                        sorted(
+                            (
+                                key,
+                                tuple(value),
+                            )
+                            for key, value
+                            in colors.items()
+                        )
+                    ),
+                    camera_style,
+                    background_bucket,
+                ),
+                lambda: self._background(
+                    colors=colors,
+                    time=background_bucket,
+                    camera_style=camera_style,
+                ),
+            )
 
         self._particles(
             image=image,
@@ -387,19 +433,19 @@ class OpeningStudio:
         return image
 
 
-def _mascot_actor(self, *, image, direction, time, progress):
-    duration=float(direction.get("duracao",4.15))
-    performance=self.mascot_performance_director.create_performance(
-        scene_kind="question", question_number=0, duration=duration,
-        difficulty=45, surprise=True, focus_side="center",
-        production_mode=direction.get("metadata",{}).get("production_mode","")
-    )
-    mascot,x,y=self.mascot_actor_animator.render(
-        performance=performance,time=time,
-        canvas_size=(self.largura,self.altura),base_size=(210,210))
-    if mascot is not None:
-        image.alpha_composite(mascot,(x,y))
-
+    def _mascot_actor(self, *, image, direction, time, progress):
+        duration=float(direction.get("duracao",4.15))
+        performance=self.mascot_performance_director.create_performance(
+            scene_kind="question", question_number=0, duration=duration,
+            difficulty=45, surprise=True, focus_side="center",
+            production_mode=direction.get("metadata",{}).get("production_mode","")
+        )
+        mascot,x,y=self.mascot_actor_animator.render(
+            performance=performance,time=time,
+            canvas_size=(self.largura,self.altura),base_size=(210,210))
+        if mascot is not None:
+            image.alpha_composite(mascot,(x,y))
+    
     def _draw_teasers(
         self,
         *,
@@ -1014,7 +1060,7 @@ def _mascot_actor(self, *, image, direction, time, progress):
             ),
         )
 
-    def _colors(
+    def _resolve_opening_colors(
         self,
         premium_theme,
         brand_direction,
@@ -1077,28 +1123,10 @@ def _mascot_actor(self, *, image, direction, time, progress):
         size,
         bold=False,
     ):
-        candidates = (
-            (
-                "C:/Windows/Fonts/arialbd.ttf",
-                "C:/Windows/Fonts/Arial.ttf",
-            )
-            if bold
-            else (
-                "C:/Windows/Fonts/Arial.ttf",
-                "C:/Windows/Fonts/arialbd.ttf",
-            )
+        return self._get_performance_engine().fonts.get(
+            size=max(int(size), 1),
+            bold=bool(bold),
         )
-
-        for path in candidates:
-            try:
-                return ImageFont.truetype(
-                    path,
-                    max(int(size), 1),
-                )
-            except OSError:
-                continue
-
-        return ImageFont.load_default()
 
     def _ease_in_out_cubic(
         self,
@@ -1141,3 +1169,90 @@ def _mascot_actor(self, *, image, direction, time, progress):
             ),
             0.0,
         )
+
+
+# -------------------------------------------------------------------------
+# Compatibilidade definitiva de paletas da abertura.
+#
+# Registra os dois nomes diretamente na classe para cobrir instalações
+# antigas e novas do Opening Studio.
+# -------------------------------------------------------------------------
+def _opening_color_resolver_compat(
+    self,
+    premium_theme=None,
+    brand_direction=None,
+    category="general_knowledge",
+):
+    palettes = {
+        "flags_geography": {
+            "top": (48, 92, 190),
+            "bottom": (39, 35, 105),
+            "primary": (46, 105, 220),
+            "secondary": (235, 65, 85),
+            "highlight": (255, 221, 75),
+            "light_a": (90, 190, 255),
+            "light_b": (255, 100, 135),
+        },
+        "preference": {
+            "top": (111, 48, 185),
+            "bottom": (44, 25, 105),
+            "primary": (255, 85, 120),
+            "secondary": (66, 145, 255),
+            "highlight": (255, 218, 75),
+            "light_a": (255, 92, 150),
+            "light_b": (75, 155, 255),
+        },
+        "animals": {
+            "top": (55, 150, 120),
+            "bottom": (24, 87, 95),
+            "primary": (55, 175, 125),
+            "secondary": (255, 157, 66),
+            "highlight": (255, 230, 105),
+            "light_a": (95, 225, 160),
+            "light_b": (255, 185, 95),
+        },
+        "food": {
+            "top": (235, 88, 112),
+            "bottom": (116, 42, 112),
+            "primary": (255, 98, 115),
+            "secondary": (255, 165, 65),
+            "highlight": (255, 235, 98),
+            "light_a": (255, 135, 155),
+            "light_b": (255, 190, 90),
+        },
+        "sports": {
+            "top": (35, 105, 180),
+            "bottom": (24, 45, 105),
+            "primary": (45, 135, 225),
+            "secondary": (45, 190, 125),
+            "highlight": (255, 224, 70),
+            "light_a": (70, 175, 255),
+            "light_b": (70, 225, 150),
+        },
+        "characters": {
+            "top": (112, 52, 170),
+            "bottom": (42, 24, 92),
+            "primary": (150, 75, 215),
+            "secondary": (235, 75, 155),
+            "highlight": (255, 207, 83),
+            "light_a": (185, 105, 255),
+            "light_b": (255, 100, 180),
+        },
+    }
+
+    return palettes.get(
+        str(category),
+        {
+            "top": (92, 55, 180),
+            "bottom": (38, 28, 95),
+            "primary": (112, 68, 210),
+            "secondary": (61, 155, 225),
+            "highlight": (255, 220, 70),
+            "light_a": (145, 95, 255),
+            "light_b": (65, 180, 255),
+        },
+    )
+
+
+OpeningStudio._resolve_opening_colors = _opening_color_resolver_compat
+OpeningStudio._colors = _opening_color_resolver_compat

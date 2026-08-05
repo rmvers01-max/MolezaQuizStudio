@@ -1,0 +1,20 @@
+MOLEZA QUIZ STUDIO
+CORREÇÃO — OPENING STUDIO COLORS
+
+Erro corrigido:
+'OpeningStudio' object has no attribute '_colors'
+
+Alteração:
+- self._colors(...) foi substituído por
+  self._resolve_opening_colors(...);
+- o método de paletas agora possui nome exclusivo;
+- correção aplicada sobre o pacote AAA Camera Director 2.0.
+
+Instalação:
+1. Extraia em D:\MolezaQuizStudio.
+2. Permita substituir os arquivos.
+3. Execute:
+
+python -m compileall src
+python -m pytest tests\test_fix_opening_colors.py -q
+python src\main.py

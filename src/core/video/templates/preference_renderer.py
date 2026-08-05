@@ -17,6 +17,10 @@ from ..animations import (
     TransitionFactory,
 )
 from ..choice_experience import AAAChoiceVisualDirector
+from ..motion_graphics import (
+    AAAMotionGraphicsDirector,
+    MotionGraphicsCompositor,
+)
 from ..theme_experience import (
     ThemeSpecificCompositor,
     ThemeSpecificExperienceDirector,
@@ -97,6 +101,9 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         self.theme_experience_director = ThemeSpecificExperienceDirector()
         self.theme_specific_compositor = ThemeSpecificCompositor()
         self.last_theme_experience = None
+        self.motion_graphics_director = AAAMotionGraphicsDirector()
+        self.motion_graphics_compositor = MotionGraphicsCompositor()
+        self.last_motion_graphics_plan = None
         self.curiosity_studio = CuriosityExperienceStudio(
             width=self.largura, height=self.altura, fps=18
         )
@@ -1588,6 +1595,25 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         desenho = ImageDraw.Draw(
             imagem
         )
+
+        self.last_motion_graphics_plan = (
+            self.motion_graphics_director.create_plan(
+                category="preference",
+                scene_kind="question",
+                question_number=numero_atual,
+                fps=24,
+            )
+        )
+
+        imagem = self.motion_graphics_compositor.animate_frame(
+            image=imagem,
+            plan=self.last_motion_graphics_plan,
+            time=float(numero_atual) * 0.12,
+            duration=4.0,
+            accent_color=tuple(self.COR_DESTAQUE),
+        )
+
+        desenho = ImageDraw.Draw(imagem)
 
         return imagem, desenho
 

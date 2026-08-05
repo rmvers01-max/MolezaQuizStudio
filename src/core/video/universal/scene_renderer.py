@@ -14,6 +14,14 @@ from PIL import (
 from moviepy import ImageSequenceClip
 
 from ..identity_engine import AAAIdentityEngine
+from ..camera_director import (
+    AAACameraCompositor,
+    AAACameraDirector,
+)
+from ..motion_graphics import (
+    AAAMotionGraphicsDirector,
+    MotionGraphicsCompositor,
+)
 from ..theme_experience import (
     ThemeSpecificCompositor,
     ThemeSpecificExperienceDirector,
@@ -131,6 +139,12 @@ class UniversalSceneRenderer:
         self.theme_experience_director = ThemeSpecificExperienceDirector()
         self.theme_specific_compositor = ThemeSpecificCompositor()
         self.last_theme_experience = None
+        self.motion_graphics_director = AAAMotionGraphicsDirector()
+        self.motion_graphics_compositor = MotionGraphicsCompositor()
+        self.last_motion_graphics_plan = None
+        self.aaa_camera_director = AAACameraDirector()
+        self.aaa_camera_compositor = AAACameraCompositor()
+        self.last_aaa_camera_plan = None
 
         self.pattern_break = (
             PatternBreakDirector()
@@ -790,6 +804,97 @@ class UniversalSceneRenderer:
                 story_beat=story_beat,
             )
 
+            motion_category = str(
+                self.knowledge_profile.get(
+                    "category",
+                    "general_knowledge",
+                )
+            )
+
+            self.last_motion_graphics_plan = (
+                self.motion_graphics_director.create_plan(
+                    category=motion_category,
+                    scene_kind=scene_kind,
+                    question_number=question_number,
+                    fps=24,
+                )
+            )
+
+            canvas = self.motion_graphics_compositor.animate_frame(
+                image=canvas,
+                plan=self.last_motion_graphics_plan,
+                time=time,
+                duration=max(
+                    float(
+                        getattr(
+                            question_direction,
+                            "thinking_duration",
+                            4.0,
+                        )
+                        if question_direction is not None
+                        else 4.0
+                    ),
+                    0.8,
+                ),
+                accent_color=tuple(
+                    theme_pack.get(
+                        "accent_color",
+                        (255, 215, 65),
+                    )
+                ),
+            )
+
+            normalized_focus_x = max(
+                min(
+                    float(focus_target.x)
+                    / max(float(self.width), 1.0),
+                    1.0,
+                ),
+                0.0,
+            )
+            normalized_focus_y = max(
+                min(
+                    float(focus_target.y)
+                    / max(float(self.height), 1.0),
+                    1.0,
+                ),
+                0.0,
+            )
+
+            self.last_aaa_camera_plan = (
+                self.aaa_camera_director.create_plan(
+                    scene_kind=scene_kind,
+                    category=motion_category,
+                    question_number=question_number,
+                    difficulty=difficulty,
+                    emotional_tone=emotional_tone,
+                    pattern_break=bool(
+                        pattern_decision.active
+                    ),
+                    surprise=surprise,
+                    focus_x=normalized_focus_x,
+                    focus_y=normalized_focus_y,
+                )
+            )
+
+            canvas = self.aaa_camera_compositor.apply(
+                image=canvas,
+                plan=self.last_aaa_camera_plan,
+                time=time,
+                duration=max(
+                    float(
+                        getattr(
+                            question_direction,
+                            "thinking_duration",
+                            4.0,
+                        )
+                        if question_direction is not None
+                        else 4.0
+                    ),
+                    0.8,
+                ),
+            )
+
             return (
                 self.cinematic_experience_compositor
                 .apply_post_camera(
@@ -889,7 +994,17 @@ class UniversalSceneRenderer:
                 if self.last_theme_experience is not None
                 else None
             ),
-            "graph_version": "4.5",
+            "motion_graphics": (
+                self.last_motion_graphics_plan.to_dict()
+                if self.last_motion_graphics_plan is not None
+                else None
+            ),
+            "aaa_camera": (
+                self.last_aaa_camera_plan.to_dict()
+                if self.last_aaa_camera_plan is not None
+                else None
+            ),
+            "graph_version": "4.7",
         })
         self.last_scene_graph_report = self.scene_graph_diagnostics.graph_to_dict(
             graph,

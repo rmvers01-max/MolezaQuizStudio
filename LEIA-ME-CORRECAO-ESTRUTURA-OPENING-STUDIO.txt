@@ -1,0 +1,49 @@
+MOLEZA QUIZ STUDIO
+CORREÇÃO DEFINITIVA — ESTRUTURA DO OPENING STUDIO
+
+Causa real:
+O método _mascot_actor havia ficado fora da classe OpeningStudio.
+Como consequência, os métodos seguintes ficaram aninhados dentro dele:
+
+- _draw_teasers
+- _energy_line
+- _transition
+- _background
+- _particles
+- _badge
+- _center_text
+- _resolve_opening_colors
+- _font
+- _interval
+
+Esta correção recoloca todos esses métodos dentro da classe.
+
+INSTALAÇÃO
+
+1. Feche completamente o MolezaQuizStudio.
+2. Extraia este ZIP em D:\MolezaQuizStudio.
+3. Confirme a substituição dos arquivos.
+4. Apague o cache Python:
+
+cd D:\MolezaQuizStudio
+.\.venv\Scripts\Activate.ps1
+
+Get-ChildItem -Path . -Recurse -Directory -Filter __pycache__ |
+    Remove-Item -Recurse -Force
+
+Get-ChildItem -Path . -Recurse -File -Include *.pyc |
+    Remove-Item -Force
+
+5. Rode o diagnóstico:
+
+$env:PYTHONPATH="D:\MolezaQuizStudio\src"
+python scripts\diagnosticar_opening_studio_completo.py
+
+Resultado esperado:
+
+Todos os métodos: True
+OPENING STUDIO COMPLETO OK
+
+6. Inicie:
+
+python src\main.py

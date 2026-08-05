@@ -1,0 +1,29 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — AAA CORE ENGINE 2.0
+
+Implementado:
+- Service Registry;
+- Event Bus;
+- Render Pipeline;
+- Health Check antes da geração;
+- perfil de performance centralizado;
+- relatório aaa_core_engine_report.json.
+
+A integração altera somente:
+src/core/video/orchestrator.py
+
+Novos arquivos:
+src/core/video/core_engine/
+scripts/diagnosticar_aaa_core_engine.py
+tests/test_aaa_core_engine_2.py
+
+Instalação:
+1. Feche o programa.
+2. Extraia em D:\MolezaQuizStudio.
+3. Limpe __pycache__ e *.pyc.
+4. Execute:
+
+$env:PYTHONPATH="D:\MolezaQuizStudio\src"
+python scripts\diagnosticar_aaa_core_engine.py
+python -m pytest tests\test_aaa_core_engine_2.py -q
+python src\main.py

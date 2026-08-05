@@ -1,0 +1,22 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — AAA MOTION GRAPHICS LIBRARY 1.0
+
+Recursos:
+- title slide + overshoot + glow;
+- card scale pop + spring;
+- counter bounce + pulse;
+- reveal hero pulse + golden sparks;
+- badges fade + scale;
+- progress fill + shine;
+- ambient glow;
+- shine sweep;
+- reveal particle burst;
+- theme-aware transitions.
+
+Scene Graph: 4.6
+Relatório: videos/relatorios/motion_graphics_report.json
+
+Testes:
+python -m compileall src
+python -m pytest tests\test_aaa_motion_graphics_library.py -q
+python src\main.py

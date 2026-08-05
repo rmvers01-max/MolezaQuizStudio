@@ -1,0 +1,63 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — AAA CAMERA DIRECTOR 2.0
+
+Objetivo:
+aplicar linguagem de câmera coerente com emoção, foco e tipo de cena.
+
+Movimentos:
+- discovery_push;
+- suspense_focus;
+- competition_push;
+- hero_reveal;
+- choice_balance;
+- calm_drift;
+- static_safe.
+
+Regras:
+- pergunta normal -> discovery push;
+- contagem ou dificuldade alta -> suspense focus;
+- Pattern Break -> competition push;
+- revelação surpresa -> hero reveal;
+- preferência -> choice balance;
+- alívio -> calm drift.
+
+A câmera considera:
+- foco da Scene Graph;
+- dificuldade;
+- Story Beat;
+- surpresa;
+- Pattern Break;
+- categoria;
+- tipo da cena.
+
+Segurança:
+- limite máximo de movimento;
+- zoom controlado;
+- shake discreto;
+- fallback estático;
+- foco normalizado;
+- preservação da legibilidade.
+
+Scene Graph:
+versão 4.7
+
+Relatório:
+videos/relatorios/aaa_camera_report.json
+
+Novos arquivos:
+src/core/video/camera_director/__init__.py
+src/core/video/camera_director/models.py
+src/core/video/camera_director/library.py
+src/core/video/camera_director/director.py
+src/core/video/camera_director/compositor.py
+src/core/video/camera_director/report.py
+tests/test_aaa_camera_director_2.py
+
+Atualizados:
+src/core/video/universal/scene_renderer.py
+src/core/video/legacy_generator.py
+
+Testes:
+python -m compileall src
+python -m pytest tests\test_aaa_camera_director_2.py -q
+python src\main.py

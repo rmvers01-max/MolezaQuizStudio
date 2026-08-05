@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 from datetime import datetime
 
+from .core_engine import AAACoreEngine
 from .identity_engine import AAAIdentityEngine
 from .legacy_generator import LegacyVideoGenerator
 from .execution import ProductionPlanExecutor
@@ -90,6 +91,74 @@ class VideoGenerator:
         self.ipe_execution_layer = IPEExecutionLayer()
         self.identity_engine = AAAIdentityEngine()
 
+        self.core_engine = AAACoreEngine(
+            strict=True
+        )
+        self._registrar_servicos_core()
+        self._configurar_pipeline_core()
+
+    def _registrar_servicos_core(self):
+        services = {
+            "legacy_renderer": self.renderer,
+            "preference_renderer": self.preference_renderer,
+            "template_registry": self.registry,
+            "universal_registry": self.universal_registry,
+            "creative_director": self.universal_creative_director,
+            "production_engine": self.intelligent_production_engine,
+            "identity_engine": self.identity_engine,
+            "performance_engine": getattr(
+                self.renderer,
+                "performance_engine",
+                None,
+            ),
+            "quiz_director": self.intelligent_quiz_director,
+            "story_director": self.cinematic_story_director,
+        }
+
+        for name, service in services.items():
+            if service is not None:
+                self.core_engine.register(
+                    name,
+                    service,
+                    replace=True,
+                )
+
+    def _configurar_pipeline_core(self):
+        self.core_engine.pipeline.add_stage(
+            "normalize_context",
+            self._core_normalize_context,
+            order=10,
+        )
+        self.core_engine.pipeline.add_stage(
+            "performance_profile",
+            self._core_performance_profile,
+            order=20,
+        )
+
+    def _core_normalize_context(self, context):
+        context["titulo_quiz"] = (
+            str(context.get("titulo_quiz", "Moleza Quiz")).strip()
+            or "Moleza Quiz"
+        )
+        context["perfil_renderizacao"] = str(
+            context.get("perfil_renderizacao", "balanced")
+        ).lower()
+
+    def _core_performance_profile(self, context):
+        engine = self.core_engine.resolve(
+            "performance_engine",
+            required=False,
+        )
+        profile = context.get(
+            "perfil_renderizacao",
+            "balanced",
+        )
+        if profile not in {"balanced", "fast", "quality"}:
+            profile = "balanced"
+            context["perfil_renderizacao"] = profile
+        if engine is not None and hasattr(engine, "configure"):
+            engine.configure(profile)
+
     @property
     def largura(self):
         return self.renderer.largura
@@ -134,6 +203,24 @@ class VideoGenerator:
         callback_progresso=None,
         perfil_renderizacao="balanced",
     ):
+        core_context = self.core_engine.run_pipeline({
+            "pasta_projeto": str(pasta_projeto),
+            "titulo_quiz": titulo_quiz,
+            "perfil_renderizacao": perfil_renderizacao,
+            "total_perguntas_recebidas": len(perguntas),
+        })
+
+        titulo_quiz = core_context["titulo_quiz"]
+        perfil_renderizacao = core_context["perfil_renderizacao"]
+
+        health = self.core_engine.validate()
+        self.core_engine.emit(
+            "before_video_generation",
+            titulo_quiz=titulo_quiz,
+            perfil_renderizacao=perfil_renderizacao,
+            health_score=health["score"],
+        )
+
         perguntas_validas = [
             dict(pergunta)
             for pergunta in perguntas
@@ -555,6 +642,21 @@ class VideoGenerator:
                     perguntas_preparadas
                 )
             )
+
+        self.core_engine.emit(
+            "after_video_generation",
+            titulo_quiz=titulo_quiz,
+            tipo_quiz=tipo_quiz,
+            total_perguntas=len(perguntas_preparadas),
+            resultado=str(resultado_video),
+        )
+
+        self.core_engine.save_report(
+            Path(pasta_projeto)
+            / "videos"
+            / "relatorios"
+            / "aaa_core_engine_report.json"
+        )
 
         return resultado_video
 
