@@ -1,0 +1,15 @@
+MOLEZA QUIZ STUDIO
+CORREÇÃO — CÂMERA SEGURA E FRAMES CONGELADOS
+
+- preferência usa câmera global estática;
+- conhecimento usa zoom global máximo de 3,5%;
+- foco limitado à zona central;
+- cada cena recebe scene_id/cache_key exclusivo;
+- reutilização de frames é desativada na timeline de preferência;
+- estado/cache do compositor é limpo antes de cada pergunta quando suportado.
+
+Teste:
+$env:PYTHONPATH="D:\MolezaQuizStudio\src"
+python scripts\diagnosticar_camera_e_frames.py
+python -m pytest tests\test_fix_camera_safe_and_frozen_frames.py -q
+python src\main.py

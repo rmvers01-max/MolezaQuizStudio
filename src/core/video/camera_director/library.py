@@ -70,18 +70,18 @@ class AAACameraMoveLibrary:
 
     def choice_balance(self) -> CameraMove:
         return CameraMove(
-            code="choice_balance_01",
-            move_type="soft_drift",
+            code="choice_safe_static_02",
+            move_type="static_safe",
             zoom_from=1.00,
-            zoom_to=1.04,
-            pan_x=0.015,
+            zoom_to=1.00,
+            pan_x=0.0,
             pan_y=0.0,
             rotation=0.0,
             shake=0.0,
-            focus_strength=0.50,
-            depth_strength=0.16,
+            focus_strength=0.35,
+            depth_strength=0.0,
             duration=4.0,
-            easing="ease_in_out_cubic",
+            easing="linear",
         )
 
     def calm_drift(self) -> CameraMove:

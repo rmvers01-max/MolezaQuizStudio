@@ -1,0 +1,35 @@
+MOLEZA QUIZ STUDIO
+CORREÇÃO — EXPORTAÇÃO DE ÁUDIO DO AAA AUDIO ENGINE
+
+Sintoma:
+o vídeo era exportado sem música e sem narrações, embora a mixagem
+tivesse sido criada.
+
+Causa:
+a exportação ainda usava:
+
+audio=bool(fontes_audio)
+
+A lista fontes_audio pertence ao fluxo antigo e permaneceu vazia depois
+da integração do AAA Audio Engine 2.0. Por isso, o MoviePy recebeu
+audio=False e descartou a faixa anexada ao vídeo.
+
+Correção:
+- verifica video_para_exportar.audio;
+- usa audio=audio_final_presente;
+- valida se audio_composto foi realmente anexado;
+- mantém a lista antiga apenas para compatibilidade;
+- não altera câmera, frames, cartões ou mascote.
+
+INSTALAÇÃO
+
+1. Feche completamente o MolezaQuizStudio.
+2. Extraia em D:\MolezaQuizStudio.
+3. Confirme a substituição.
+4. Limpe __pycache__ e *.pyc.
+5. Execute:
+
+$env:PYTHONPATH="D:\MolezaQuizStudio\src"
+python scripts\diagnosticar_exportacao_audio.py
+python -m pytest tests\test_fix_audio_export_aaa_engine.py -q
+python src\main.py

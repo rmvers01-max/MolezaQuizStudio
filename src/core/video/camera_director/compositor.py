@@ -43,16 +43,26 @@ class AAACameraCompositor:
             * eased
         )
 
-        zoom = min(
-            zoom,
-            1.0 + float(plan.safe_motion_limit) * 0.18,
+        safe_zoom_cap = (
+            1.0
+            if str(getattr(plan, "category", "")) == "preference"
+            else 1.035
         )
+        zoom = min(max(zoom, 1.0), safe_zoom_cap)
 
         result = self._zoom_and_pan(
             image=image,
             zoom=zoom,
-            pan_x=float(move.pan_x) * eased,
-            pan_y=float(move.pan_y) * eased,
+            pan_x=(
+                0.0
+                if str(getattr(plan, "category", "")) == "preference"
+                else float(move.pan_x) * eased
+            ),
+            pan_y=(
+                0.0
+                if str(getattr(plan, "category", "")) == "preference"
+                else float(move.pan_y) * eased
+            ),
             target_x=float(plan.target_x),
             target_y=float(plan.target_y),
         )
@@ -101,8 +111,8 @@ class AAACameraCompositor:
         extra_x = scaled_width - width
         extra_y = scaled_height - height
 
-        focus_x = max(min(target_x, 1.0), 0.0)
-        focus_y = max(min(target_y, 1.0), 0.0)
+        focus_x = max(min(float(target_x), 0.62), 0.38)
+        focus_y = max(min(float(target_y), 0.58), 0.42)
 
         left = int(
             extra_x * focus_x

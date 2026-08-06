@@ -1,0 +1,66 @@
+MOLEZA QUIZ STUDIO
+MEGA SPRINT — AAA STABILITY ENGINE 1.0
+
+Objetivo:
+impedir que o programa comece uma geração quando uma dependência ou
+proteção essencial estiver ausente.
+
+Implementado:
+- detecção automática do FFmpeg;
+- configuração automática de IMAGEIO_FFMPEG_EXE;
+- configuração automática de FFMPEG_BINARY;
+- verificação de módulos Python;
+- verificação do AAA Audio Engine;
+- verificação do AAA Performance Engine;
+- verificação do renderer de preferência;
+- verificação da proteção contra frames congelados;
+- bloqueio preventivo antes da geração;
+- relatório de estabilidade;
+- integração com AAA Core Engine.
+
+FFmpeg:
+a busca ocorre nesta ordem:
+
+1. IMAGEIO_FFMPEG_EXE
+2. FFMPEG_BINARY
+3. PATH do Windows
+4. D:\MolezaQuizStudio\ffmpeg\ffmpeg.exe
+5. D:\MolezaQuizStudio\tools\ffmpeg\ffmpeg.exe
+6. imageio-ffmpeg
+
+O pytest é opcional.
+A ausência dele gera warning, mas não impede o programa de abrir.
+
+Dependências obrigatórias:
+- Pillow;
+- MoviePy;
+- NumPy;
+- pandas;
+- openpyxl;
+- customtkinter;
+- imageio;
+- imageio-ffmpeg;
+- FFmpeg.
+
+Relatório:
+videos/relatorios/aaa_stability_engine_report.json
+
+Novos arquivos:
+src/core/video/stability_engine/__init__.py
+src/core/video/stability_engine/models.py
+src/core/video/stability_engine/ffmpeg.py
+src/core/video/stability_engine/dependencies.py
+src/core/video/stability_engine/guards.py
+src/core/video/stability_engine/engine.py
+scripts/diagnosticar_aaa_stability_engine.py
+tests/test_aaa_stability_engine_1.py
+
+Atualizados:
+src/core/video/orchestrator.py
+src/core/video/core_engine/engine.py
+
+Teste:
+$env:PYTHONPATH="D:\MolezaQuizStudio\src"
+python scripts\diagnosticar_aaa_stability_engine.py
+python -m pytest tests\test_aaa_stability_engine_1.py -q
+python src\main.py

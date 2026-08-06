@@ -1,0 +1,27 @@
+MOLEZA QUIZ STUDIO
+CORREÇÃO — PRIORIDADE DO FFMPEG RESOLVER
+
+Falha corrigida:
+
+test_ffmpeg_resolver_accepts_project_binary
+
+Causa:
+o resolvedor procurava o FFmpeg do PATH antes do executável local
+criado pelo teste.
+
+Nova ordem:
+
+1. D:\MolezaQuizStudio\ffmpeg\ffmpeg.exe
+2. D:\MolezaQuizStudio\tools\ffmpeg\ffmpeg.exe
+3. D:\MolezaQuizStudio\bin\ffmpeg.exe
+4. IMAGEIO_FFMPEG_EXE
+5. FFMPEG_BINARY
+6. PATH do Windows
+7. imageio-ffmpeg
+
+Isso mantém o MolezaQuizStudio portátil e faz o teste funcionar mesmo
+quando existe outro FFmpeg instalado pelo WinGet.
+
+Teste:
+
+python -m pytest tests\test_aaa_stability_engine_1.py -q

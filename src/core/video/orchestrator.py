@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 
 from .core_engine import AAACoreEngine
+from .stability_engine import AAAStabilityEngine
 from .identity_engine import AAAIdentityEngine
 from .legacy_generator import LegacyVideoGenerator
 from .execution import ProductionPlanExecutor
@@ -97,6 +98,18 @@ class VideoGenerator:
         self._registrar_servicos_core()
         self._configurar_pipeline_core()
 
+        self.stability_engine = (
+            AAAStabilityEngine(
+                project_root=Path.cwd()
+            )
+        )
+
+        self.core_engine.register(
+            "stability_engine",
+            self.stability_engine,
+            replace=True,
+        )
+
     def _registrar_servicos_core(self):
         services = {
             "legacy_renderer": self.renderer,
@@ -109,6 +122,11 @@ class VideoGenerator:
             "performance_engine": getattr(
                 self.renderer,
                 "performance_engine",
+                None,
+            ),
+            "audio_engine": getattr(
+                self.renderer,
+                "aaa_audio_engine",
                 None,
             ),
             "quiz_director": self.intelligent_quiz_director,
@@ -158,6 +176,22 @@ class VideoGenerator:
             context["perfil_renderizacao"] = profile
         if engine is not None and hasattr(engine, "configure"):
             engine.configure(profile)
+
+        audio_engine = self.core_engine.resolve(
+            "audio_engine",
+            required=False,
+        )
+
+        if (
+            audio_engine is not None
+            and hasattr(
+                audio_engine,
+                "configure",
+            )
+        ):
+            audio_engine.configure(
+                profile
+            )
 
     @property
     def largura(self):
@@ -214,6 +248,14 @@ class VideoGenerator:
         perfil_renderizacao = core_context["perfil_renderizacao"]
 
         health = self.core_engine.validate()
+
+        stability_report = (
+            self.stability_engine
+            .ensure_healthy(
+                video_generator=self
+            )
+        )
+
         self.core_engine.emit(
             "before_video_generation",
             titulo_quiz=titulo_quiz,
@@ -656,6 +698,13 @@ class VideoGenerator:
             / "videos"
             / "relatorios"
             / "aaa_core_engine_report.json"
+        )
+
+        self.stability_engine.save_report(
+            Path(pasta_projeto)
+            / "videos"
+            / "relatorios"
+            / "aaa_stability_engine_report.json"
         )
 
         return resultado_video

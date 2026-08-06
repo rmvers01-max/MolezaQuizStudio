@@ -1,4 +1,5 @@
 from pathlib import Path
+import copy
 import json
 import math
 import textwrap
@@ -322,6 +323,55 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         self.light_sweep_factory.largura = self.largura
         self.light_sweep_factory.altura = self.altura
 
+    def _preparar_cena_timeline_segura(
+        self,
+        cena,
+        *,
+        numero,
+        tipo,
+        contador=None,
+    ):
+        safe_scene = copy.deepcopy(dict(cena or {}))
+        unique_id = (
+            f"preference_q{int(numero):03d}_{str(tipo)}"
+            + (f"_{int(contador):02d}" if contador is not None else "")
+        )
+        safe_scene["scene_id"] = unique_id
+        safe_scene["cache_key"] = unique_id
+        safe_scene["question_number"] = int(numero)
+        safe_scene["disable_frame_reuse"] = True
+        safe_scene["reuse_frame"] = False
+        safe_scene["static_frame_cache"] = False
+        self._desativar_camera_global(safe_scene)
+        return safe_scene
+
+    def _desativar_camera_global(self, value):
+        if isinstance(value, dict):
+            for key in list(value.keys()):
+                normalized = str(key).strip().lower()
+                if normalized in {
+                    "camera_style","camera_mode","camera_motion","global_camera",
+                }:
+                    value[key] = "static"
+                elif normalized in {
+                    "zoom","zoom_from","zoom_to","camera_zoom","global_zoom","scale_camera",
+                }:
+                    value[key] = 1.0
+                elif normalized in {
+                    "pan_x","pan_y","camera_pan_x","camera_pan_y","shake",
+                    "camera_shake","rotation","camera_rotation",
+                }:
+                    value[key] = 0.0
+                elif normalized in {
+                    "camera_enabled","enable_camera","global_camera_enabled",
+                }:
+                    value[key] = False
+                else:
+                    self._desativar_camera_global(value[key])
+        elif isinstance(value, list):
+            for item in value:
+                self._desativar_camera_global(item)
+
     def _criar_clip_abertura_profissional(
         self,
         titulo,
@@ -414,6 +464,22 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
         volume_narracao
     ):
         self._sincronizar_scene_factory()
+
+        reset_method = getattr(
+            self.timeline_compositor,
+            "reset_scene_state",
+            None,
+        )
+        if callable(reset_method):
+            reset_method()
+
+        clear_method = getattr(
+            self.timeline_compositor,
+            "clear_frame_cache",
+            None,
+        )
+        if callable(clear_method):
+            clear_method()
 
         if not hasattr(
             self,
@@ -551,7 +617,11 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
 
         clips_video.append(
             self.timeline_compositor.renderizar(
-                cena_entrada
+                self._preparar_cena_timeline_segura(
+                    cena_entrada,
+                    numero=numero,
+                    tipo="entrada",
+                )
             )
         )
 
@@ -616,7 +686,11 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
 
             clips_video.append(
                 self.timeline_compositor.renderizar(
-                    cena_timeline
+                    self._preparar_cena_timeline_segura(
+                        cena_timeline,
+                        numero=numero,
+                        tipo="pergunta",
+                    )
                 )
             )
 
@@ -658,7 +732,12 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
 
             clips_video.append(
                 self.timeline_compositor.renderizar(
-                    cena_contagem
+                    self._preparar_cena_timeline_segura(
+                        cena_contagem,
+                        numero=numero,
+                        tipo="contagem",
+                        contador=contador,
+                    )
                 )
             )
 
@@ -750,7 +829,11 @@ class ProfessionalPreferenceRenderer(LegacyVideoGenerator):
 
         clips_video.append(
             self.timeline_compositor.renderizar(
-                cena_resultado
+                self._preparar_cena_timeline_segura(
+                    cena_resultado,
+                    numero=numero,
+                    tipo="resultado",
+                )
             )
         )
 

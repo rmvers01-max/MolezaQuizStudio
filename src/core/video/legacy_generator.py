@@ -5,6 +5,10 @@ import textwrap
 
 from PIL import Image, ImageDraw, ImageFont
 
+from .audio_engine import (
+    AAAAudioEngine,
+    AAAAudioReportWriter,
+)
 from .audio_sync import AudioSyncDirector
 from .curiosity import (
     CuriosityExperienceDirector,
@@ -136,6 +140,12 @@ class LegacyVideoGenerator:
         )
 
         self.audio_sync = AudioSyncDirector()
+        self.aaa_audio_engine = AAAAudioEngine(
+            profile="balanced"
+        )
+        self.aaa_audio_report_writer = (
+            AAAAudioReportWriter()
+        )
         self.pattern_break_director = (
             PatternBreakDirector()
         )
@@ -910,6 +920,8 @@ class LegacyVideoGenerator:
                 method="compose"
             )
 
+            # Mantida apenas para compatibilidade com plugins antigos.
+            # A presença de áudio na exportação é determinada pelo clip final.
             fontes_audio = []
 
             # ==================================
@@ -958,40 +970,74 @@ class LegacyVideoGenerator:
                     )
                 )
 
-                fontes_audio.append(
-                    audio_musica_final
-                )
-
-            # ==================================
-            # NARRAÇÕES
-            # ==================================
-
-            fontes_audio.extend(
-                clips_narracao
-            )
-
-            if fontes_audio:
+            if (
+                audio_musica_final is not None
+                or clips_narracao
+            ):
                 self._informar_progresso(
                     callback_progresso,
                     total_perguntas,
                     total_perguntas,
-                    "Misturando música e narração..."
+                    "Aplicando mixagem e ducking automático..."
                 )
 
-                audio_composto = CompositeAudioClip(
-                    fontes_audio
-                ).with_duration(
-                    video_final.duration
-                )
-
-                video_com_audio = (
-                    video_final.with_audio(
-                        audio_composto
+                self.aaa_audio_engine.configure(
+                    getattr(
+                        self.execution_settings,
+                        "quality_profile",
+                        "balanced",
                     )
                 )
 
-                video_para_exportar = (
-                    video_com_audio
+                audio_composto = (
+                    self.aaa_audio_engine.mix(
+                        duration=(
+                            video_final.duration
+                        ),
+                        music_clip=(
+                            audio_musica_final
+                        ),
+                        foreground_clips=(
+                            clips_narracao
+                        ),
+                        narration_clips=(
+                            clips_narracao
+                        ),
+                    )
+                )
+
+                if audio_composto is not None:
+                    video_para_exportar = (
+                        video_final.with_audio(
+                            audio_composto
+                        )
+                    )
+
+                    if (
+                        getattr(
+                            video_para_exportar,
+                            "audio",
+                            None,
+                        )
+                        is None
+                    ):
+                        raise RuntimeError(
+                            "A mixagem foi criada, mas o áudio "
+                            "não foi anexado ao vídeo final."
+                        )
+                else:
+                    video_para_exportar = (
+                        video_final
+                    )
+
+                self.aaa_audio_report_writer.save(
+                    self.aaa_audio_engine,
+                    (
+                        Path(pasta_projeto)
+                        / "videos"
+                        / "relatorios"
+                        / "aaa_audio_engine_report.json"
+                    ),
                 )
 
             else:
@@ -1022,12 +1068,24 @@ class LegacyVideoGenerator:
                 "Renderizando arquivo MP4..."
             )
 
+            # O AAA Audio Engine não usa mais a lista legada
+            # `fontes_audio` como fonte de verdade. A exportação deve
+            # verificar o áudio realmente anexado ao clip final.
+            audio_final_presente = (
+                getattr(
+                    video_para_exportar,
+                    "audio",
+                    None,
+                )
+                is not None
+            )
+
             video_para_exportar.write_videofile(
                 str(caminho_saida),
                 fps=self.fps,
                 codec="libx264",
                 audio_codec="aac",
-                audio=bool(fontes_audio),
+                audio=audio_final_presente,
                 preset="medium",
                 threads=4,
                 logger=None
